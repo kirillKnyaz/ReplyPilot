@@ -2,11 +2,11 @@
 
 ## Week 1: Foundation & Setup
 Set up the project structure and core systems.
-- Create a monorepo with Vite (React) for frontend and Express (Node.js) for backend
-- Initialize PostgreSQL database and configure Prisma ORM
-- Implement JWT-based authentication system
-- Build initial onboarding form (niche/ICP questions)
-- Set up Stripe test mode for subscription tiers
+- Create a monorepo with Vite (React) for frontend and Express (Node.js) for backend ✅
+- Initialize PostgreSQL database and configure Prisma ORM ✅
+- Implement JWT-based authentication system 🟡
+- Build initial onboarding form (niche/ICP questions) 
+- Set up Stripe test mode for subscription tiers 
 - Deploy backend to Railway and frontend to Vercel for CI/CD foundation
 
 ## Week 2: Lead Scraper MVP

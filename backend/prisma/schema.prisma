@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  password       String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  profile        UserProfile?
+  subscriptions  Subscription[]
+  leads          Lead[]
+  messages       Message[]
+}
+
+model UserProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  niche     String?
+  icp       String?
+  tone      String?
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  stripeId  String
+  tier      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model Lead {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  website   String
+  email     String?
+  phone     String?
+  score     Int?
+  notes     String?
+  createdAt DateTime @default(now())
+  messages  Message[]
+}
+
+model Message {
+  id         String         @id @default(uuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  leadId     String
+  lead       Lead           @relation(fields: [leadId], references: [id])
+  content    String
+  sentAt     DateTime       @default(now())
+  method     String         // e.g. email, linkedin
+  status     MessageStatus  @default(PENDING)
+  reply      Reply?
+
+  @@index([userId, leadId])
+}
+
+model Reply {
+  id         String         @id @default(uuid())
+  messageId  String         @unique
+  message    Message        @relation(fields: [messageId], references: [id])
+  content    String
+  repliedAt  DateTime       @default(now())
+  sentiment  Sentiment
+  category   ReplyCategory
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  FAILED
+  REPLIED
+}
+
+enum Sentiment {
+  POSITIVE
+  NEGATIVE
+  NEUTRAL
+}
+
+enum ReplyCategory {
+  INTERESTED
+  GHOSTED
+  SOFT_NO
+  IRRELEVANT
+}
