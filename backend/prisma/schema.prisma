@@ -26,13 +26,12 @@ model User {
 }
 
 model UserProfile {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
-  niche     String?
-  icp       String?
-  tone      String?
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  profileData  Json?
+  icpSummary   String?   // ChatGPT-generated summary or persona string
+  createdAt    DateTime  @default(now())
 }
 
 model Subscription {
