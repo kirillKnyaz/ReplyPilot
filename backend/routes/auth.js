@@ -45,16 +45,31 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email }, 
+      select: { 
+        id: true, 
+        email: true, 
+        password: true, 
+        profile: { 
+          select: { 
+            id: true, 
+            icpSummary: true, 
+            profileData: true 
+          }
+        }
+      } 
+    });
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token: token, onboarded: user.profile !== null && user.profile !== undefined });
+
+    res.json({ token: token, user: { id: user.id, email: user.email, profile: user.profile } });
   } catch (err) {
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ message: 'Login failed', error: err.message});
   }
 });
 

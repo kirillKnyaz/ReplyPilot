@@ -12,15 +12,15 @@ function DashboardPage() {
       navigate('/login'); // Redirect to login if not authenticated
     }
 
-    if (user && !user.profile) {
-      navigate('/onboarding'); // Redirect to profile setup if no profile exists
+    if (!loading && user) {
+      if (!user.profile) {
+        navigate('/onboarding'); // Redirect to onboarding if no profile data
+      }
     }
   }, [user, loading, authenticated]);
 
   return (
     <div>
-      <h1 className="mb-3">Welcome to ReplyPilot</h1>
-      <p>This is your dashboard. Start prospecting!</p>
     </div>
   );
 }

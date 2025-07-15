@@ -14,7 +14,7 @@ export const useStepValidation = () => {
 
   const sectionKey = Object.keys(requiredFields)[step - 1];
   const fields = requiredFields[sectionKey];
-  const sectionData = data[sectionKey];
+  const sectionData = data[sectionKey] || {};
 
   const isStepValid = fields.every(field => {
     const value = sectionData[field];

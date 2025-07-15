@@ -4,7 +4,7 @@ import { IntakeFormContext } from '../../context/IntakeFormContext';
 import IntakeFormSection from '../../components/IntakeFormSection';
 import { useStepValidation } from '../../hooks/useStepValidation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faArrowRight, faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons';
 import API from '../../api';
 import { useNavigate } from 'react-router-dom';
 
@@ -62,15 +62,22 @@ function OnboardingPage() {
 
   const [ savingStep, setSavingStep ] = useState(1);
   const [ savingStepMessage, setSavingStepMessage ] = useState('');
-
   const [ submitLoading, setSubmitLoading ] = useState(false);
+  const [ icpDropdownOpen, setIcpDropdownOpen ] = useState(false);
+  const [ icpSummaries, setIcpSummaries ] = useState({
+    buyingTriggers: false,
+    coldMessageTips: false,
+    companyType: false,
+    painPoints: false,
+    preferredChannels: false,
+  });
 
   const { isStepValid } = useStepValidation();
   const current = formSteps[step - 1];
 
   useEffect(() => {
     if (!loading && user) {
-      dispatch({ type: 'SET_FORM_DATA', payload: user.profile.profileData || {} });
+      dispatch({ type: 'SET_FORM_DATA', payload: user.profile?.profileData || {} });
     }
   }, [loading, user]);
 
@@ -107,7 +114,69 @@ function OnboardingPage() {
   };
 
   return (<>
-    <div className="p-3">
+    <div className="p-3 d-flex flex-column align-items-center">
+      {!loading && user && user.profile && user.profile.icpSummary && <>
+        <div className={`container m-0 align-self-center ${!icpDropdownOpen && 'mb-4'}`}>
+          <button className='btn btn-subtle-outline-secondary' onClick={() => setIcpDropdownOpen(!icpDropdownOpen)}>
+            <span>Existing ICP</span>
+            <FontAwesomeIcon icon={icpDropdownOpen ? faChevronUp : faChevronDown} className='ms-2'/>
+          </button>
+        </div>
+        {icpDropdownOpen && 
+          <div className='container m-0 mb-4 ps-4 align-self-center d-flex flex-column align-items-start'>
+            <button className='mb-2 btn' onClick={() => setIcpSummaries({ ...icpSummaries, buyingTriggers: !icpSummaries.buyingTriggers })}>
+              Customer's buying triggers <FontAwesomeIcon icon={icpSummaries.buyingTriggers ? faChevronUp : faChevronDown}/>
+            </button>
+            {icpSummaries.buyingTriggers && user.profile.icpSummary.buyingTriggers && user.profile.icpSummary.buyingTriggers.map((trigger, index) => (
+              <div key={index} className='mb-2'>
+                <span className='badge bg-secondary me-2'>{index + 1}</span>
+                <span>{trigger}</span>
+              </div>
+            ))}
+
+            <button className='mb-2 btn' onClick={() => setIcpSummaries({ ...icpSummaries, coldMessageTips: !icpSummaries.coldMessageTips })}>
+              Tips for cold outreach <FontAwesomeIcon icon={icpSummaries.coldMessageTips ? faChevronUp : faChevronDown}/>
+            </button>
+            {icpSummaries.coldMessageTips && user.profile.icpSummary.coldMessageTips && user.profile.icpSummary.coldMessageTips.map((tip, index) => (
+              <div key={index} className='mb-2'>
+                <span className='badge bg-secondary me-2'>{index + 1}</span>
+                <span>{tip}</span>  
+              </div>
+            ))}
+
+            <button className='mb-2 btn' onClick={() => setIcpSummaries({ ...icpSummaries, companyType: !icpSummaries.companyType })}>
+              Company type <FontAwesomeIcon icon={icpSummaries.companyType ? faChevronUp : faChevronDown}/>
+            </button>
+            {icpSummaries.companyType && user.profile.icpSummary.companyType &&
+              <div className='mb-2'>
+                <span className='badge bg-secondary me-2'>1</span>
+                <span>{user.profile.icpSummary.companyType}</span>
+              </div>
+            }
+
+            <button className='mb-2 btn' onClick={() => setIcpSummaries({ ...icpSummaries, painPoints: !icpSummaries.painPoints })}>
+              Customer's pain points <FontAwesomeIcon icon={icpSummaries.painPoints ? faChevronUp : faChevronDown}/>
+            </button>
+            {icpSummaries.painPoints && user.profile.icpSummary.painPoints && user.profile.icpSummary.painPoints.map((point, index) => (
+              <div key={index} className='mb-2'>
+                <span className='badge bg-secondary me-2'>{index + 1}</span>
+                <span>{point}</span>
+              </div>
+            ))}
+
+            <button className='mb-2 btn' onClick={() => setIcpSummaries({ ...icpSummaries, preferredChannels: !icpSummaries.preferredChannels })}>
+              Customer's preferred channels <FontAwesomeIcon icon={icpSummaries.preferredChannels ? faChevronUp : faChevronDown}/>
+            </button>
+            {icpSummaries.preferredChannels && user.profile.icpSummary.preferredChannels && user.profile.icpSummary.preferredChannels.map((channel, index) => (
+              <div key={index} className='mb-2'>
+                <span className='badge bg-secondary me-2'>{index + 1}</span>
+                <span>{channel}</span>  
+              </div>
+            ))}
+          </div>
+        }
+      </>}
+
       <div className="container position-relative">
         <div className="col-8">
           <IntakeFormSection

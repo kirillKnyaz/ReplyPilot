@@ -43,15 +43,14 @@ export function AuthProvider({ children }) {
       const res = await API.post('/auth/login', { email, password });
       localStorage.setItem('token', res.data.token);
       setAuthenticated(true);
-      setUser(res.data);
-      console.log('Login successful:', res.data);
-      if (res.data.onboarded) {
+      setUser(res.data.user);
+      if (res.data && res.data.user && res.data.user.profile) {
         navigate('/');
       } else {
         navigate('/onboarding');
       }
     } catch (err) {
-      throw new Error('Login failed');
+      console.log('Login failed', err);
     }
   };
 

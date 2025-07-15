@@ -30,7 +30,7 @@ model UserProfile {
   userId       String   @unique
   user         User     @relation(fields: [userId], references: [id])
   profileData  Json?
-  icpSummary   String?   // ChatGPT-generated summary or persona string
+  icpSummary   Json?   
   createdAt    DateTime  @default(now())
 }
 

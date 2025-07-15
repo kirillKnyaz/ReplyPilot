@@ -1,24 +1,22 @@
 const { OpenAI } = require('openai');
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function generateICPSummary(profileData) {
   const prompt = `
-  You're a B2B outreach strategist. Your job is to craft the perfect Ideal Customer Profile (ICP) for a sales campaign based on structured onboarding data.
+  You're a B2B outreach strategist. Based on this structured intake data, generate a clean JSON summary of the Ideal Customer Profile (ICP).
 
-  Here is the user’s data:
+  Respond ONLY in this format (no extra commentary):
+  {
+    "role": "...",
+    "companyType": "...",
+    "painPoints": ["..."],
+    "buyingTriggers": ["..."],
+    "preferredChannels": ["..."],
+    "coldMessageTips": ["..."]
+  }
+
+  Data:
   ${JSON.stringify(profileData, null, 2)}
-
-  Generate a concise but detailed ICP. Include:
-  - Customer role and company type
-  - Key problems they face
-  - What they care about and why they buy
-  - Where they hang out (channels, platforms)
-  - How to best approach them with a cold message
-
-  Respond in professional tone, using 3–6 bullet points.
   `;
 
   const response = await openai.chat.completions.create({
@@ -27,7 +25,15 @@ async function generateICPSummary(profileData) {
     temperature: 0.7,
   });
 
-  return response.choices[0].message.content.trim();
+  const raw = response.choices[0].message.content.trim();
+  const jsonString = raw.replace(/```json|```/g, '').trim();
+
+  try {
+    return JSON.parse(jsonString); // ✅ now it's a real JSON object
+  } catch (err) {
+    console.error('❌ Failed to parse GPT response as JSON:', raw);
+    throw new Error('Invalid JSON returned by GPT');
+  }
 }
 
 module.exports = { generateICPSummary };
