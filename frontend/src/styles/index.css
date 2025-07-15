@@ -20,18 +20,3 @@
 * {
   font-family: 'Lexend', sans-serif;
 }
-
-.plane-svg {
-  overflow: visible;
-  height: 40px;
-}
-
-.plane-path {
-  stroke-dasharray: 300;
-  stroke-dashoffset: 300;
-}
-
-.plane-icon-wrapper {
-  width: 20px;
-  height: 20px;
-}

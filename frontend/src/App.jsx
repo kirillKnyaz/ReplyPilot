@@ -9,6 +9,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import OnboardingPage from './pages/onboarding/OnboardingPage';
 import { IntakeFormContext, IntakeFormProvider } from './context/IntakeFormContext';
+import PricingPage from './pages/billing/PricingPage';
 
 export default function App() {
   return (
@@ -26,6 +27,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+
+            <Route path='/pricing' element={<PricingPage />} />
 
             <Route
               path="/onboarding"

@@ -34,7 +34,7 @@ function UserMenu() {
       <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark' to={"/"}>Dashboard</Link>
       <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark'>Profile</Link>
       <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark' to={"/onboarding"}>Onboarding</Link>
-      <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark'>Billing</Link>
+      <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark' to={"/pricing"}>Billing</Link>
      
       <button className='btn btn-outline-danger m-3' type='button' onClick={() => logout()}>
         <span>Logout</span>
