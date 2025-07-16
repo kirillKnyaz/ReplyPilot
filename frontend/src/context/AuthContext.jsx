@@ -38,9 +38,8 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const login = async (email, password) => {
-    try {
-      const res = await API.post('/auth/login', { email, password });
+  const login = async (email, password, setError) => {
+    API.post('/auth/login', { email, password }).then((res) => {
       localStorage.setItem('token', res.data.token);
       setAuthenticated(true);
       setUser(res.data.user);
@@ -49,9 +48,9 @@ export function AuthProvider({ children }) {
       } else {
         navigate('/onboarding');
       }
-    } catch (err) {
-      console.log('Login failed', err);
-    }
+    }).catch((error) => {
+      setError(error.response?.data?.message || 'Login failed. Please try again.');
+    });
   };
 
   useEffect(() => {

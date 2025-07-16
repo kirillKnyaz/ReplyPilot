@@ -49,7 +49,7 @@ function PricingPage() {
             </div>
 
             <div className='card-footer d-flex justify-content-start'>
-              <button className='btn btn-primary w-100'>
+              <button className='btn btn-primary w-100' type='button' onClick={() => handleCheckout()}>
                 {tier.cta}
                 <FontAwesomeIcon icon={faCreditCard} className='ms-2' />
               </button>
