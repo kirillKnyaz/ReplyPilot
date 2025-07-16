@@ -10,6 +10,7 @@ import DashboardPage from './pages/dashboard/DashboardPage';
 import OnboardingPage from './pages/onboarding/OnboardingPage';
 import { IntakeFormContext, IntakeFormProvider } from './context/IntakeFormContext';
 import PricingPage from './pages/billing/PricingPage';
+import PaymentSuccessful from './pages/billing/PaymentSuccessful';
 
 export default function App() {
   return (
@@ -19,17 +20,10 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route element={<Layout />}>
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-
+            <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path='/pricing' element={<PricingPage />} />
-
+            <Route path="/billing/success" element={<ProtectedRoute><PaymentSuccessful /></ProtectedRoute>} />
+            
             <Route
               path="/onboarding"
               element={
