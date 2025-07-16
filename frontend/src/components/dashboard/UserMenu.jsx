@@ -24,7 +24,7 @@ function UserMenu() {
 
   return (<div>
     <button className='btn btn-outline-secondary rounded-circle p-2' onClick={() => setDropdownOpen(!dropdownOpen)}>
-      <img src='pfp.png' alt='Profile' style={{ width: '30px', height: '30px' }} />
+      <img src='/pfp.png' alt='Profile' style={{ width: '30px', height: '30px' }} />
     </button>
     {dropdownOpen && <div 
       ref={menuRef}

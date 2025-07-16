@@ -5,6 +5,7 @@ import React from 'react'
 import { loadStripe } from '@stripe/stripe-js';
 import API from '../../api';
 import useAuth from '../../hooks/useAuth';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 const pricingTiers = [
   {
@@ -22,14 +23,22 @@ const pricingTiers = [
 function PricingPage() {
   const { authenticated, user, loading } = useAuth();
   const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+  const navigate = useNavigate();
 
   const handleCheckout = async () => {
-    const stripe = await stripePromise;
+    try {
+      const stripe = await stripePromise;
 
-    const { data } = await API.post(`/billing/create-checkout-session`, {
-      userId: user.id,
-      priceId: import.meta.env.VITE_BASE_OUTREACH_PRICE_ID
-    })
+      const { data } = await API.post(`/billing/create-checkout-session`, {
+        userId: user.id,
+        priceId: import.meta.env.VITE_BASE_OUTREACH_PRICE_ID
+      });
+      console.log('Checkout session created:', data);
+
+      window.location.href = data.url;
+    } catch (error) {
+      console.log('Error during checkout:', error);
+    }
   }
 
   return (<div className='container mt-4'>

@@ -49,6 +49,7 @@ export function AuthProvider({ children }) {
         navigate('/onboarding');
       }
     }).catch((error) => {
+      console.error('Login error:', error);
       setError(error.response?.data?.message || 'Login failed. Please try again.');
     });
   };
