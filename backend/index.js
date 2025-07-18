@@ -35,15 +35,49 @@ app.post("/api/billing/webhook", express.raw({ type: "application/json" }), asyn
     // Fetch full subscription details
     const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
 
-    // Optional: extract tier name
-    const tier = subscription.items.data[0]?.price.nickname || subscription.items.data[0]?.price.id;
+    const existing = await prisma.subscription.findUnique({ where: { stripeId: subscription.id } });
+    if (!existing) {
+      await prisma.subscription.create({
+        data: {
+          userId,
+          stripeId: stripeSubscriptionId,
+          tier,
+          active: true,
+          cancel_at_period_end: false,
+          current_period_end: subscription.items.data[0].current_period_end,
+        },
+      });
+    } else {
+      await prisma.subscription.update({
+        where: { stripeId: subscription.id },
+        data: {
+          active: true,
+          cancel_at_period_end: false,
+          current_period_end: subscription.items.data[0].current_period_end,
+        },
+      });
+    }
+  }
 
-    await prisma.subscription.create({
+  if (event.type === 'customer.subscription.updated') {
+    const session = event.data.object;
+    const subscription = await stripe.subscriptions.retrieve(session.subscription);    
+
+    await prisma.subscription.update({
+      where: { stripeId: subscription.id },
       data: {
-        userId,
-        stripeId: stripeSubscriptionId,
-        tier,
-        active: true,
+        active: !subscription.cancel_at_period_end,
+        cancel_at_period_end: subscription.cancel_at_period_end,
+        current_period_end: subscription.items.data[0].current_period_end,
+      },
+    });
+  }
+
+  if (event.type === 'customer.subscription.deleted') {
+    await prisma.subscription.update({
+      where: { stripeId: subscription.id },
+      data: {
+        active: false,        
       },
     });
   }

@@ -20,7 +20,7 @@ model User {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   profile        UserProfile?
-  subscriptions  Subscription[]
+  subscription   Subscription?
   leads          Lead[]
   messages       Message[]
 }
@@ -36,11 +36,13 @@ model UserProfile {
 
 model Subscription {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String   @unique
   user      User     @relation(fields: [userId], references: [id])
-  stripeId  String
+  stripeId  String   @unique
   tier      String
   active    Boolean  @default(true)
+  cancel_at_period_end Boolean @default(false)
+  current_period_end Int?  
   createdAt DateTime @default(now())
 }
 

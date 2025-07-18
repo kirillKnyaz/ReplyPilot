@@ -31,9 +31,8 @@ function LoginPage() {
     }
     setLoading(true);
 
-    await login(email, password, setLoginMessage);
-    setLoading(false);
-    setLoginMessage('');
+    await login(email, password, setLoginMessage, setLoading);
+    setLoginMessage(''); // Clear message on successful login
   };
 
   return (<div className="d-flex flex-column w-100 vh-100 justify-content-center align-items-center">

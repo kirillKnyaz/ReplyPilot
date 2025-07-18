@@ -38,19 +38,23 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const login = async (email, password, setError) => {
+  const login = async (email, password, setError, setLoading) => {
     API.post('/auth/login', { email, password }).then((res) => {
       localStorage.setItem('token', res.data.token);
       setAuthenticated(true);
       setUser(res.data.user);
-      if (res.data && res.data.user && res.data.user.profile) {
+      console.log('User logged in:', res.data.user);
+      if (res.data.user.subscription && res.data.user.subscription.active) {
         navigate('/');
-      } else {
-        navigate('/onboarding');
+      }
+      else {
+        navigate('/pricing');
       }
     }).catch((error) => {
       console.error('Login error:', error);
       setError(error.response?.data?.message || 'Login failed. Please try again.');
+    }).finally(() => {
+      if (setLoading) setLoading(false);
     });
   };
 

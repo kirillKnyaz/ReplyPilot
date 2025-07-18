@@ -57,7 +57,8 @@ router.post('/login', async (req, res) => {
             icpSummary: true, 
             profileData: true 
           }
-        }
+        },
+        subscription: { select: { stripeId: true, tier: true, active: true } },
       } 
     });
     if (!user) return res.status(401).json({ message: 'Invalid credentials' });
@@ -67,7 +68,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1d' });
 
-    res.json({ token: token, user: { id: user.id, email: user.email, profile: user.profile } });
+    res.json({ token: token, user: { id: user.id, email: user.email, profile: user.profile, subscription: user.subscription } });
   } catch (err) {
     res.status(500).json({ message: 'Login failed', error: err.message});
   }
@@ -81,7 +82,11 @@ router.get('/me', authenticate, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.userId },
-      select: { id: true, email: true, profile: {select: {id: true, profileData: true, icpSummary: true}}, subscriptions: { select: { id: true, stripeId: true, tier: true, active: true } } },
+      select: { 
+        id: true, 
+        email: true, 
+        profile: {select: {id: true, profileData: true, icpSummary: true}}, 
+        subscription: { select: { stripeId: true, tier: true, active: true } } },
     });
     res.json(user);
   } catch {

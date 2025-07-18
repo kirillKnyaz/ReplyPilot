@@ -30,11 +30,11 @@ function UserMenu() {
       ref={menuRef}
       className='position-absolute d-flex flex-column bg-white border rounded col-12 col-md-3 top-100 end-0 m-md-3 pt-3' 
       style={{ zIndex: 1000 }}
-    >
+    > 
       <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark' to={"/"}>Dashboard</Link>
       <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark'>Profile</Link>
       <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark' to={"/onboarding"}>Onboarding</Link>
-      <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark' to={"/pricing"}>Billing</Link>
+      <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark' to={"/billing"}>Billing</Link>
      
       <button className='btn btn-outline-danger m-3' type='button' onClick={() => logout()}>
         <span>Logout</span>

@@ -12,6 +12,7 @@ import { IntakeFormContext, IntakeFormProvider } from './context/IntakeFormConte
 import PricingPage from './pages/billing/PricingPage';
 import PaymentSuccessfulPage from './pages/billing/PaymentSuccessfulPage';
 import PaymentCancelPage from './pages/billing/PaymentCancelPage';
+import BillingPage from './pages/billing/BillingPage';
 
 export default function App() {
   return (
@@ -23,8 +24,10 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path='/pricing' element={<PricingPage />} />
+
+            <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />           
             <Route path="/billing/success" element={<ProtectedRoute><PaymentSuccessfulPage /></ProtectedRoute>} />
-            <Route path="/billing/cancel" element={<PaymentCancelPage />} />
+            <Route path="/billing/cancel" element={<ProtectedRoute><PaymentCancelPage /></ProtectedRoute>} />
             
             <Route
               path="/onboarding"
