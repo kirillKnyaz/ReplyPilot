@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 
 function UserMenu() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth(); 
   const [ dropdownOpen, setDropdownOpen ] = React.useState(null);
   const menuRef = React.useRef(null);
 
@@ -23,6 +23,7 @@ function UserMenu() {
   }, []);
 
   return (<div>
+    {user && !dropdownOpen && <span className='text-muted small me-2 d-none d-md-inline'>{user.email}</span>}
     <button className='btn btn-outline-secondary rounded-circle p-2' onClick={() => setDropdownOpen(!dropdownOpen)}>
       <img src='/pfp.png' alt='Profile' style={{ width: '30px', height: '30px' }} />
     </button>
@@ -30,7 +31,8 @@ function UserMenu() {
       ref={menuRef}
       className='position-absolute d-flex flex-column bg-white border rounded col-12 col-md-3 top-100 end-0 m-md-3 pt-3' 
       style={{ zIndex: 1000 }}
-    > 
+    >
+      {user && <span className='text-muted small ps-4 mb-3'>: {user.email}</span>}
       <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark' to={"/"}>Dashboard</Link>
       <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark'>Profile</Link>
       <Link className='w-100 menu-link p-1 ps-4 m-0 text-decoration-none text-dark' to={"/onboarding"}>Onboarding</Link>

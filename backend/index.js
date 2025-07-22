@@ -34,50 +34,64 @@ app.post("/api/billing/webhook", express.raw({ type: "application/json" }), asyn
 
     // Fetch full subscription details
     const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    const product = await stripe.products.retrieve(subscription.items.data[0].price.product);
 
-    const existing = await prisma.subscription.findUnique({ where: { stripeId: subscription.id } });
+    const existing = await prisma.subscription.findUnique({ where: { userId: userId } });
     if (!existing) {
       await prisma.subscription.create({
         data: {
           userId,
           stripeId: stripeSubscriptionId,
-          tier,
+          tier: product.name,
           active: true,
           cancel_at_period_end: false,
           current_period_end: subscription.items.data[0].current_period_end,
+          status: subscription.status,
         },
       });
     } else {
       await prisma.subscription.update({
-        where: { stripeId: subscription.id },
+        where: { userId: userId },
         data: {
+          stripeId: stripeSubscriptionId,
           active: true,
           cancel_at_period_end: false,
           current_period_end: subscription.items.data[0].current_period_end,
+          status: subscription.status,
         },
       });
     }
   }
 
   if (event.type === 'customer.subscription.updated') {
-    const session = event.data.object;
-    const subscription = await stripe.subscriptions.retrieve(session.subscription);    
+    const subscription = event.data.object;
+
+    const status = subscription.status; // 'active', 'trialing', etc.
+    const stripeId = subscription.id;
+    const cancelAtPeriodEnd = subscription.cancel_at_period_end;
+    const currentPeriodEnd = subscription.items.data[0].current_period_end;
+
+    const isActive = ['active', 'trialing', 'past_due', 'unpaid'].includes(status);
 
     await prisma.subscription.update({
-      where: { stripeId: subscription.id },
+      where: { stripeId },
       data: {
-        active: !subscription.cancel_at_period_end,
-        cancel_at_period_end: subscription.cancel_at_period_end,
-        current_period_end: subscription.items.data[0].current_period_end,
+        status,
+        active: isActive,
+        cancel_at_period_end: cancelAtPeriodEnd,
+        current_period_end: currentPeriodEnd,
       },
     });
   }
 
   if (event.type === 'customer.subscription.deleted') {
+    const subscription = event.data.object;
+
     await prisma.subscription.update({
       where: { stripeId: subscription.id },
       data: {
-        active: false,        
+        status: 'canceled',
+        active: false,
       },
     });
   }

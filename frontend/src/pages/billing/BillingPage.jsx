@@ -10,6 +10,8 @@ function BillingPage() {
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [subscription, setSubscription] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
   const navigate = useNavigate();
 
   //redirect block
@@ -43,13 +45,63 @@ function BillingPage() {
       return;
     }
     console.log('Cancelling subscription:', subscription.id);
+    setActionLoading(true);
 
     API.post('/billing/cancel', {
       stripeSubscriptionId: subscription.id,
     }).then(response => {
       console.log('Subscription cancellation response:', response.data);
+      // Update local subscription state
+      setSubscription(response.data);
     }).catch(error => {
       console.error('Error cancelling subscription:', error);
+    }).finally(() => {
+      setActionLoading(false);
+    });
+  }
+
+  const renewSubscription = async () => {
+    if (!subscription || !subscription.id) {
+      console.error('No subscription to renew');
+      return;
+    }
+
+    setActionLoading(true);
+    console.log('Renewing subscription:', subscription.id);
+    API.post('/billing/renew', {
+      stripeSubscriptionId: subscription.id,
+    }).then(response => {
+      console.log('Subscription renewal response:', response.data);
+      // Update local subscription state
+      setSubscription(response.data);
+    }).catch(error => {
+      console.error('Error renewing subscription:', error);
+    }).finally(() => {
+      setActionLoading(false);
+    });
+  }
+
+  const cancelImmediately = async () => {
+    if (!subscription || !subscription.id) {
+      console.error('No subscription to cancel immediately');
+      return;
+    }
+
+    setActionLoading(true);
+    console.log('Cancelling subscription immediately:', subscription.id);
+    API.post('/billing/full-cancel', {
+      stripeSubscriptionId: subscription.id,
+    }).then(response => {
+      console.log('Subscription cancellation response:', response.data);
+      // Update local subscription state
+      navigate('/pricing', {
+        state: { message: response.data.message }
+      }); // Redirect to pricing page after cancellation
+      setSubscription(null);
+    }).catch(error => {
+      console.error('Error cancelling subscription:', error);
+    }).finally(() => {
+      setActionLoading(false);
     });
   }
 
@@ -100,17 +152,23 @@ function BillingPage() {
                 </p>
 
                 {subscription.cancel_at_period_end 
-                  ? <>
-                      <button className='btn btn-outline-secondary' disabled>
-                        Subscription will end on {new Date(subscription.items.data[0].current_period_end * 1000).toLocaleDateString()}
-                      </button>
+                  ? <div className='d-flex flex-column'>
+                      <div>
+                        <button className='btn btn-outline-secondary' disabled>
+                          Subscription will end on {new Date(subscription.items.data[0].current_period_end * 1000).toLocaleDateString()}
+                        </button>
 
-                      <button className='btn'>Renew <FontAwesomeIcon icon={faArrowRight} className='ms-1' /></button>
-                    </> 
+                        <button className='btn' type='button' onClick={() => renewSubscription()}>Renew <FontAwesomeIcon icon={faArrowRight} className='ms-1' /></button>
+                      </div>
+                      <button className='btn btn-link align-self-start text-secondary' type='button' onClick={() => cancelImmediately()}>
+                        Cancel immediately
+                      </button>
+                    </div> 
                   : <button className='btn btn-outline-danger' onClick={() => cancelSubscription()}>
                     Cancel Subscription
                   </button>
                 }
+                {actionLoading && <div className='spinner-border spinner-border-sm ms-2' role='status'/>}
               </div>
             </div>
           : <div className="card">

@@ -67,31 +67,104 @@ router.get("/subscription", async (req, res) => {
 });
 
 router.post('/cancel', async (req, res) => {
-  const { stripeSubscriptionId } = req.body;
+  const userId = req.user.userId;
+  
+  const existingSubscription = await prisma.subscription.findUnique({
+    where: { userId: userId },
+  });
 
-  const canceled = await stripe.subscriptions.update(stripeSubscriptionId, {
+  if (!existingSubscription) {
+    return res.status(404).json({ message: "Subscription not found" });
+  }
+
+  if (existingSubscription.cancel_at_period_end) {
+    return res.status(400).json({ message: "Subscription is already set to cancel at period end" });
+  }
+
+  const canceled = await stripe.subscriptions.update(existingSubscription.stripeId, {
     cancel_at_period_end: true, // ⏳ Cancel when current period ends
   });
 
   await prisma.subscription.update({
-    where: { stripeId: stripeSubscriptionId},
+    where: { stripeId: existingSubscription.stripeId },
     data: {
       cancel_at_period_end: true,
       current_period_end: canceled.items.data[0].current_period_end,
     }
-  })
+  });
 
-  res.json({ canceled });
+  const product = await stripe.products.retrieve(canceled.items.data[0].price.product);
+  res.json({ ...canceled, productName: product.name });
 });
 
 router.post('/renew', async (req, res) => {
-  const { stripeSubscriptionId } = req.body;
+  const userId = req.user.userId;
 
-  const renewed = await stripe.subscriptions.update(stripeSubscriptionId, {
-    cancel_at_period_end: false, // ⏳ Renew the subscription
+  // is subscription still active?
+  const existingSubscription = await prisma.subscription.findUnique({
+    where: { userId: userId },
   });
 
-  res.json({ renewed });
+  if (!existingSubscription) {
+    return res.status(404).json({ message: "Subscription not found" });
+  }
+
+  const stripeSubscription = await stripe.subscriptions.retrieve(existingSubscription.stripeId);
+
+  // if subscription is active, no need to renew
+  if (stripeSubscription.cancel_at_period_end === false) {
+    return res.status(200).json({ message: "Subscription is already active" });
+  }
+
+  // subscription is still active but cancelled
+  if (stripeSubscription.cancel_at_period_end === true && stripeSubscription.status === 'active') {
+    const renewed = await stripe.subscriptions.update(existingSubscription.stripeId, {
+      cancel_at_period_end: false, // Reactivate the subscription
+    });
+
+    await prisma.subscription.update({
+      where: { stripeId: existingSubscription.stripeId },
+      data: {
+        active: true,
+        cancel_at_period_end: false,
+        current_period_end: renewed.items.data[0].current_period_end,
+      }
+    });
+
+    const product = await stripe.products.retrieve(renewed.items.data[0].price.product);
+    return res.json({ ...renewed, productName: product.name });
+  }
+
+  // Inactive subscription -> create a new subscription
+  if (stripeSubscription.status === 'canceled') {
+    return res.status(410).json({ message: "Subscription is canceled, please subscribe again" });
+  }
 });
+
+router.post('/full-cancel', async (req, res) => {
+  const userId = req.user.userId;
+
+  const existingSubscription = await prisma.subscription.findUnique({
+    where: { userId: userId },
+  });
+
+  if (!existingSubscription) {
+    return res.status(404).json({ message: "Subscription not found" });
+  }
+
+  await stripe.subscriptions.cancel(existingSubscription.stripeId);
+
+  await prisma.subscription.update({
+    where: { userId: userId },
+    data: {
+      active: false,
+      cancel_at_period_end: true,
+      current_period_end: existingSubscription.current_period_end,
+      status: 'canceled',
+    }
+  })
+
+  res.json({ message: "Subscription fully canceled" });
+})
 
 module.exports = router;

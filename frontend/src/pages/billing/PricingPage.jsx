@@ -5,7 +5,7 @@ import React, { useEffect} from 'react'
 import { loadStripe } from '@stripe/stripe-js';
 import API from '../../api';
 import useAuth from '../../hooks/useAuth';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 const pricingTiers = [
   {
@@ -36,6 +36,8 @@ function PricingPage() {
   const { authenticated, user, loading } = useAuth();
   const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { locationMessage } = location.state || {};
 
   //redirect block
   useEffect(() => {
@@ -64,6 +66,7 @@ function PricingPage() {
   }
 
   return (<div className='container mt-4'>
+    {locationMessage && <div className='text-info'>{locationMessage}</div>}
     <h1>Get started now</h1>
     <div className='row mt-5'>
       {pricingTiers.map((tier, index) => (
