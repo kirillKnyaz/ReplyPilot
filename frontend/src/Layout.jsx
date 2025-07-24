@@ -60,7 +60,7 @@ function Layout() {
 
 
   return (<div className="d-flex flex-column vh-100">
-    <nav className="navbar navbar-expand-lg navbar-light position-relative">
+    <nav className="navbar navbar-expand-lg navbar-light position-relative border-bottom">
       <div className="container-fluid">
         <Link to={"/"} className="navbar-brand fs-3">
           <span className='me-2'>ReplyPilot</span>
@@ -69,9 +69,9 @@ function Layout() {
           </span>
         </Link>
 
-        {authenticated ? (
+        {authenticated ? (<>
           <UserMenu /> 
-        ) : (
+        </>) : (
           <Link to="/login" className="btn btn-primary">Login</Link>
         )}
       </div>

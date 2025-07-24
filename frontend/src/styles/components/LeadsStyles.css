@@ -1,0 +1,8 @@
+.sidebar-lead {
+  cursor: pointer;
+  transition: padding 0.3s ease;
+}
+
+.sidebar-lead:hover {
+  background-color: #ffffff;
+}

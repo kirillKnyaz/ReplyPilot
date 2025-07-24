@@ -13,6 +13,7 @@ import PricingPage from './pages/billing/PricingPage';
 import PaymentSuccessfulPage from './pages/billing/PaymentSuccessfulPage';
 import PaymentCancelPage from './pages/billing/PaymentCancelPage';
 import BillingPage from './pages/billing/BillingPage';
+import { LeadProvider } from './context/LeadContext';
 
 export default function App() {
   return (
@@ -22,7 +23,11 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route element={<Layout />}>
-            <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/" element={<ProtectedRoute>
+              <LeadProvider>
+                <DashboardPage />
+              </LeadProvider>
+            </ProtectedRoute>} />
             <Route path='/pricing' element={<PricingPage />} />
 
             <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />           

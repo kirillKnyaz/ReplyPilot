@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import useAuth from "../../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import LeadSidebar from "../../components/leads/LeadSidebar";
 
 function DashboardPage() {
   const { loading, authenticated, user } = useAuth();
@@ -20,7 +21,13 @@ function DashboardPage() {
   }, [user, loading, authenticated]);
 
   return (
-    <div>
+    <div className="container-fluid p-0 d-flex h-100">
+      <main className="flex-grow-1"></main>
+
+      <div>
+        <LeadSidebar />
+      </div>
+
     </div>
   );
 }

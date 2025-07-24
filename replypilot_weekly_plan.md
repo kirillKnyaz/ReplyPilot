@@ -45,4 +45,3 @@ Finalize MVP, clean UX, and get ready for launch.
 - Enforce API security (rate limits, validation, sanitized input)
 - Integrate PostHog or Sentry for usage/error logging
 - Write onboarding documentation, test extension distribution, and begin manual outreach to beta users
-

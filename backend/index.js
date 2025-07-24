@@ -105,6 +105,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/onboarding', authenticate, require('./routes/onboarding'));
 app.use('/api/billing', authenticate, require('./routes/billing'));
+app.use('/api/leads', authenticate, require('./routes/leads'));
 
 app.listen(process.env.PORT, () =>
   console.log(`Server running on http://localhost:${process.env.PORT}`)
