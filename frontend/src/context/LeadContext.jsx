@@ -36,6 +36,7 @@ export const LeadProvider = ({ children }) => {
       setActionLoading(false);
     });
   }
+  
   const selectLead = (id) => setSelectedLeadId(id);
 
   return (

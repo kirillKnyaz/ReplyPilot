@@ -86,7 +86,8 @@ router.get('/me', authenticate, async (req, res) => {
         id: true, 
         email: true, 
         profile: {select: {id: true, profileData: true, icpSummary: true}}, 
-        subscription: { select: { stripeId: true, tier: true, active: true } } },
+        subscription: true 
+      },
     });
     res.json(user);
   } catch {

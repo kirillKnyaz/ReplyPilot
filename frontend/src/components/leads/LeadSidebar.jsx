@@ -70,7 +70,7 @@ export default function LeadSidebar() {
     setShowAddForm(false);
   };
 
-  return (<div className={`d-flex border-end h-100`}>
+  return (<div className="d-flex border-end h-100 position-sidebar">
     <button className="btn btn-outline-light rounded-0 border-end px-3" onClick={() => setIsOpen(!isOpen)}>
       <FontAwesomeIcon icon={isOpen ? faChevronRight : faChevronLeft} className='text-primary' />
     </button>
@@ -111,7 +111,10 @@ export default function LeadSidebar() {
         <div
           className={`p-2 sidebar-lead border-bottom ${lead.id === selectedLeadId ? 'bg-white' : ''}`}
           key={index}
-          onClick={() => {selectLead(lead.id)}}
+          onClick={() => {
+            selectLead(lead.id);
+            setIsOpen(false);
+          }}
         >
           <div ref={lead.id === selectedLeadId ? selectedLeadRef : null}>
             <h6 className='m-0'>{lead.name}</h6>

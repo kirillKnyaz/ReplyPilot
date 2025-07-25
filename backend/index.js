@@ -63,6 +63,28 @@ app.post("/api/billing/webhook", express.raw({ type: "application/json" }), asyn
     }
   }
 
+  if (event.type === 'checkout.session.completed' || event.type === 'invoice.payment_succeeded' || event.type === 'invoice.paid') {
+    const session = event.data.object;
+    const userId = session.metadata.userId;
+
+    // Optional: fetch subscription details to determine tier
+    const subscriptionId = session.subscription;
+    const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
+    const dbSub = await prisma.subscription.findUnique({
+      where: { stripeId: subscriptionId },
+      select: { tier: true }
+    });
+
+    const tokenAmount = getTokenAmountForTier(dbSub.tier); // 👇
+
+    await prisma.subscription.update({
+      where: { userId },
+      data: {
+        searchTokens: tokenAmount,
+      },
+    });
+  }
+
   if (event.type === 'customer.subscription.updated') {
     const subscription = event.data.object;
 
@@ -71,7 +93,7 @@ app.post("/api/billing/webhook", express.raw({ type: "application/json" }), asyn
     const cancelAtPeriodEnd = subscription.cancel_at_period_end;
     const currentPeriodEnd = subscription.items.data[0].current_period_end;
 
-    const isActive = ['active', 'trialing', 'past_due', 'unpaid'].includes(status);
+    const isActive = ['active', 'trialing', 'past_due', 'unpaid', 'canceled'].includes(status);
 
     await prisma.subscription.update({
       where: { stripeId },
@@ -106,7 +128,17 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/onboarding', authenticate, require('./routes/onboarding'));
 app.use('/api/billing', authenticate, require('./routes/billing'));
 app.use('/api/leads', authenticate, require('./routes/leads'));
+app.use('/api/search', authenticate, require('./routes/search'));
 
 app.listen(process.env.PORT, () =>
   console.log(`Server running on http://localhost:${process.env.PORT}`)
 );
+
+function getTokenAmountForTier(tier) {
+  switch (tier) {
+    case 'Base Outreach Tier':
+      return 250;
+    default:
+      return 0;
+  }
+}

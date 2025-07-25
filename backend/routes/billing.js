@@ -113,9 +113,10 @@ router.post('/renew', async (req, res) => {
 
   // if subscription is active, no need to renew
   if (stripeSubscription.cancel_at_period_end === false) {
-    return res.status(200).json({ message: "Subscription is already active" });
+    const product = await stripe.products.retrieve(stripeSubscription.items.data[0].price.product);
+    return res.status(200).json({ ...stripeSubscription, productName: product.name, message: "Subscription is still active" });
   }
-
+  
   // subscription is still active but cancelled
   if (stripeSubscription.cancel_at_period_end === true && stripeSubscription.status === 'active') {
     const renewed = await stripe.subscriptions.update(existingSubscription.stripeId, {

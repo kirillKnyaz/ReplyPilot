@@ -6,3 +6,15 @@
 .sidebar-lead:hover {
   background-color: #ffffff;
 }
+
+.position-sidebar {
+  position: static;
+}
+
+@media (max-width: 768px) {
+  .position-sidebar {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+}

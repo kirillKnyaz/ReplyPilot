@@ -7,10 +7,15 @@ import { faArrowLeft, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 
 function BillingPage() {
   const { authenticated, user, loading } = useAuth();
+
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [subscription, setSubscription] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
+  
   const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState(null);
+
+
 
   const navigate = useNavigate();
 
@@ -55,6 +60,7 @@ function BillingPage() {
       setSubscription(response.data);
     }).catch(error => {
       console.error('Error cancelling subscription:', error);
+      setActionError(error.response.data.message || "Failed to cancel subscription");
     }).finally(() => {
       setActionLoading(false);
     });
@@ -76,6 +82,7 @@ function BillingPage() {
       setSubscription(response.data);
     }).catch(error => {
       console.error('Error renewing subscription:', error);
+      setActionError(error.response.data.message || "Failed to renew subscription");
     }).finally(() => {
       setActionLoading(false);
     });
@@ -100,6 +107,7 @@ function BillingPage() {
       setSubscription(null);
     }).catch(error => {
       console.error('Error cancelling subscription:', error);
+      setActionError(error.response.data.message || "Failed to cancel subscription immediately");
     }).finally(() => {
       setActionLoading(false);
     });
@@ -141,7 +149,7 @@ function BillingPage() {
                 <p className="card-text">
                   Last billed: {new Date(subscription.items.data[0].current_period_start * 1000).toLocaleDateString()}
                 </p>
-                {!subscription.cancel_at_period_end && <p className="card-text">
+                {!subscription.cancel_at_period_end && subscription.status !== 'canceled' && <p className="card-text">
                   Next billing: {new Date(subscription.items.data[0].current_period_end * 1000).toLocaleDateString()} <FontAwesomeIcon icon={faArrowLeft} className='ms-2 text-primary' />
                 </p>}
                 <p className="card-text">
@@ -151,7 +159,7 @@ function BillingPage() {
                   Stripe Sub ID: {subscription.id}
                 </p>
 
-                {subscription.cancel_at_period_end 
+                {subscription.cancel_at_period_end || subscription.status === 'canceled'
                   ? <div className='d-flex flex-column'>
                       <div>
                         <button className='btn btn-outline-secondary' disabled>
@@ -160,9 +168,9 @@ function BillingPage() {
 
                         <button className='btn' type='button' onClick={() => renewSubscription()}>Renew <FontAwesomeIcon icon={faArrowRight} className='ms-1' /></button>
                       </div>
-                      <button className='btn btn-link align-self-start text-secondary' type='button' onClick={() => cancelImmediately()}>
+                      {subscription.status !== 'canceled' && <button className='btn btn-link align-self-start text-secondary' type='button' onClick={() => cancelImmediately()}>
                         Cancel immediately
-                      </button>
+                      </button>}
                     </div> 
                   : <button className='btn btn-outline-danger' onClick={() => cancelSubscription()}>
                     Cancel Subscription
@@ -178,6 +186,8 @@ function BillingPage() {
               </div>
             </div>
           }
+
+        {actionError && <div className='text-danger mt-2'>{actionError}</div>}
       </div>
     </div>
   </>)
