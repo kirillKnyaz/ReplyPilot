@@ -62,8 +62,16 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, [location]);
 
+  const updateUserSubscription = async (subJson) => {
+    if (!user || !user.id) return;
+    setUser((prevUser) => ({
+      ...prevUser,
+      subscription: subJson,
+    }));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, authenticated, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, authenticated, loading, login, logout, updateUserSubscription }}>
       {children}
     </AuthContext.Provider>
   );

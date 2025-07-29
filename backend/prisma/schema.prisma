@@ -43,6 +43,7 @@ model Subscription {
   active            Boolean
   cancel_at_period_end Boolean @default(false)
   current_period_end Int
+  ended_at          DateTime?
   status            String   
   searchTokens      Int @default(0)
   createdAt         DateTime @default(now())

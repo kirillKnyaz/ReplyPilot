@@ -10,12 +10,15 @@ Set up the project structure and core systems.
 - Deploy backend to Railway and frontend to Vercel for CI/CD foundation ✅
 
 ## Week 2: Lead Scraper MVP 🟡
-Build the first working version of the scraping engine.
-- Integrate Google Places API and Custom Search API
-- Set up a Puppeteer worker to scrape website content and contact data
-- Create a job queue system using BullMQ + Redis for queued scraping jobs
-- Add UI in the frontend to trigger manual scrapes and display results
-- Store scraped leads in DB with score and metadata
+Build the discovery system that finds high-quality leads based on user ICP.
+- Integrate Google Places API + Maps JavaScript Embed for lead visualization ✅
+- Add textSearch & nearbySearch for smarter, intent-based discovery 🟡
+- Use AI to generate search queries from user ICP (e.g., "cosmetic dentist Toronto")
+- Crawl returned websites using Puppeteer for deeper context
+- Use OpenAI to evaluate if the business matches the user's ICP
+- Score, tag, and store leads based on relevance and source
+- Create frontend UI to display scored leads with "why this was picked"
+- Store scraped leads in DB with metadata and match score
 
 ## Week 3: Message Engine
 Build the AI-powered message generation interface.

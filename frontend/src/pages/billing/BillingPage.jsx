@@ -15,8 +15,6 @@ function BillingPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState(null);
 
-
-
   const navigate = useNavigate();
 
   //redirect block

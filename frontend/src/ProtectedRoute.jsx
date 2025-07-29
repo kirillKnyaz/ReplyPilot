@@ -12,12 +12,19 @@ export default function ProtectedRoute({ children }) {
     }
 
     if (!loading && authenticated && user) {
+      if (user.subscription.ended_at && Date.now() > new Date(user.subscription?.ended_at * 1000)) {
+        navigate('/pricing', {
+          state: {
+            message: 'Your subscription has expired. Please renew to continue using the service.'
+          }
+        });
+      }
       if (user.subscription == null || user.subscription.active == false) {
         navigate('/pricing');
       }
     }
 
-    if (user && user.profile && !user.profile.icpSummary) {
+    if (user && user.profile && (user.profile.icpSummary == null || user.profile.icpSummary === undefined)) {
       navigate('/onboarding');
     }
   }, [loading, authenticated, user, navigate]);
