@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import MapContainer from './MapContainer';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowDown, faArrowUp, faCrown, faEllipsis, faGlobe, faMagnifyingGlass, faRepeat, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
+import { faArrowDown, faArrowUp, faCrown, faEllipsis, faExternalLink, faExternalLinkAlt, faFloppyDisk, faGlobe, faMagnifyingGlass, faRepeat, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import API from '../../api';
 import useAuth from '../../hooks/useAuth';
 import { Link } from 'react-router-dom';
+import { useLeads } from '../../context/LeadContext';
 
 const PLACE_CATEGORIES = [
   { value: "car_repair", label: "Car Repair" },
@@ -32,28 +33,40 @@ const PLACE_CATEGORIES = [
 
 function DiscoverLeadsMap() {
   const { user, updateUserSubscription } = useAuth();
+  const { addLead, selectLead, actionLoading, actionError } = useLeads();
 
   const [searchToggle, setSearchToggle] = useState(true);
 
   const [selectedCategory, setSelectedCategory] = useState(localStorage.getItem('selectedCategory') || 'restaurant');
   const [textSearchQuery, setTextSearchQuery] = useState('');
+  const [completionLoading, setCompletionLoading] = useState(false);
+  const [completionError, setCompletionError] = useState(null);
   const [maxResultCount, setMaxResultCount] = useState(10);
 
   const [selectedPlace, setSelectedPlace] = useState(null);
-  const [searchButtonVisible, setSearchButtonVisible] = useState(false);
+  const [searchButtonVisible, setSearchButtonVisible] = useState(true);
   const [nearbySearchLoading, setNearbySearchLoading] = useState(false);
   const [nearbySearchError, setNearbySearchError] = useState(null);
 
   const [places, setPlaces] = useState([]);
 
   const [selectedBusiness, setSelectedBusiness] = useState(null);
-  const scrapeLoading = false;
 
   useEffect(() => {
-    if (selectedPlace) {
-      setSearchButtonVisible(true);
+    setSearchButtonVisible(false);
+    if (searchToggle) {
+      if (selectedPlace) {
+        setSearchButtonVisible(true);
+      }
+    } else {
+      if (textSearchQuery.trim() !== '' && selectedPlace) {
+        setSearchButtonVisible(true);
+      } else {
+        setSearchButtonVisible(false);
+      }
     }
-  }, [selectedPlace, selectedCategory]);
+
+  }, [selectedPlace, selectedCategory, textSearchQuery, maxResultCount, searchToggle]);
 
   const handleNearbySearch = async () => {
     setSearchButtonVisible(false);
@@ -94,6 +107,45 @@ function DiscoverLeadsMap() {
       setNearbySearchError(error.response.data.message || "Failed to fetch text search results");
     }).finally(() => {
       setNearbySearchLoading(false);
+      setTextSearchQuery('');
+    });
+  }
+
+  const handleSaveLead = () => {
+    if (!selectedBusiness) {
+      console.error("No business selected to save as lead");
+      return;
+    }
+
+    const place = places.find(p => p.id === selectedBusiness);
+    if (!place) {
+      console.error("Selected business not found in places list");
+      return;
+    }
+
+    const leadData = {
+      name: place.displayName.text,
+      website: place.websiteUri || 'no website',
+      email: 'no email', // Placeholder, you might want to implement a way to collect emails
+      phone: '', // Placeholder, you might want to implement a way to collect phone numbers
+      notes: `Found via ${searchToggle ? 'Nearby Search' : 'Text Search'}\nCategory: ${selectedCategory}\nLocation: ${place.addressComponents ? place.addressComponents[4].longText : 'N/A'}`
+    };
+
+    addLead(leadData);
+  }
+
+  const handleTextSearchCompletion = () => {
+    setCompletionLoading(true);
+    
+    API.get('/leads/generateQuery').then((response) => {
+      const query = response.data.query;
+      setTextSearchQuery(query);
+      console.log("Generated search query:", query);
+    }).catch((error) => {
+      console.error("Error generating search query:", error);
+      setCompletionError(error.response.data.error || "Failed to generate search query");
+    }).finally(() => {
+      setCompletionLoading(false);
     });
   }
 
@@ -125,8 +177,9 @@ function DiscoverLeadsMap() {
           </select> 
           : <div className='input-group me-2'>
             <input type='text' value={textSearchQuery} onChange={(event) => setTextSearchQuery(event.target.value)} className='form-control' placeholder='Search...' />
-            <button className='btn btn-outline-secondary'>
-              <FontAwesomeIcon icon={faWandMagicSparkles}/>
+            <button className='btn btn-outline-secondary' onClick={() => handleTextSearchCompletion()} disabled={completionLoading}>
+              {completionLoading ? <div className='spinner-border spinner-border-sm' role='status' 
+              /> : <FontAwesomeIcon icon={faWandMagicSparkles}/>}
             </button>
           </div>}
 
@@ -139,7 +192,8 @@ function DiscoverLeadsMap() {
               }
             }}/>
           </div>
-        </nav>        
+        </nav>
+        {completionError && <div className='text-danger m-0 my-3 d-flex align-items-center'>{completionError} <button className='btn p-0 m-0 ms-2' onClick={() => setCompletionError(null)}>x</button></div>}        
 
         {/* Map Container */}
         <MapContainer updateSelectedPlace={setSelectedPlace} places={places} selectedBusiness={selectedBusiness}/>
@@ -186,14 +240,38 @@ function DiscoverLeadsMap() {
             </div>
 
             {selectedBusiness === place.id && (
-              <div className='d-flex align-items-center justify-content-between mt-2'>
-                <button className='btn btn-primary py-1'>
-                  {scrapeLoading ? <div className='spinner-border text-white' style={{ width: '1rem', height: '1rem' }}/> : !place.websiteUri ? 'No Website' : 'Analyse Website'}
-                </button>
+              <div className='d-flex align-items-center justify-content-between mt-2 w-100 border-muted border-top'>
+                <div className='d-flex flex-column me-3 flex-grow-1'>
+                  <p 
+                    className='text-muted m-0' 
+                    style={{ fontSize: '0.9rem' }}
+                  >
+                    {place.addressComponents ? `${place.addressComponents[4].longText} - ${place.addressComponents[3].longText}` : 'N/A'}
+                  </p>
+                  <a 
+                    href={place.googleMapsUri} 
+                    target="_blank" rel="noopener noreferrer" 
+                    className='m-0 '
+                    style={{ fontSize: '0.9rem' }}
+                  >
+                    Google Maps <FontAwesomeIcon icon={faExternalLink} />
+                  </a>
+                  <a 
+                    href={place.websiteUri} 
+                    target="_blank" rel="noopener noreferrer" 
+                    className='m-0 '
+                    style={{ fontSize: '0.9rem' }}
+                  >
+                    {place.websiteUri} <FontAwesomeIcon icon={faExternalLink} />
+                  </a>
+                </div>
 
-                <button className='btn btn-secondary ms-2 py-1'>
-                  <span className='me-2'>Social media</span>
-                  <FontAwesomeIcon icon={faMagnifyingGlass}/>
+                <button className='btn btn-primary' onClick={() => handleSaveLead()} disabled={actionLoading}>
+                  Save 
+                  {actionLoading 
+                    ? <div className='spinner-border spinner-border-sm' role='status' /> 
+                    : <FontAwesomeIcon icon={faFloppyDisk} className='ms-2'/>
+                  }
                 </button>
               </div>
             )}

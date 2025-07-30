@@ -51,17 +51,44 @@ model Subscription {
 }
 
 model Lead {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  name      String
-  website   String
-  email     String?
-  phone     String?
-  score     Int?
-  notes     String?
-  createdAt DateTime @default(now())
-  messages  Message[]
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])    
+  mapsUri       String?
+  placesId      String?
+  location      String
+  
+  name          String
+  type          String?
+  description   String?
+  keywords      String[] // from GPT
+
+  // Contact info fields
+  website       String?
+  email         String?
+  phone         String?
+
+  // Socials
+  instagram     String?
+  facebook      String?
+  tiktok        String?
+
+  // Workflow flags
+  identityComplete Boolean @default(false)
+  contactComplete  Boolean @default(false)
+  socialComplete   Boolean @default(false)
+
+  messages      Message[]
+  sources       LeadSource[]
+}
+
+model LeadSource {
+  id         String         @id @default(uuid())
+  leadId     String
+  lead       Lead           @relation(fields: [leadId], references: [id])
+  goal       SourceGoal     
+  type       SourceType
+  url        String
 }
 
 model Message {
@@ -107,4 +134,15 @@ enum ReplyCategory {
   GHOSTED
   SOFT_NO
   IRRELEVANT
+}
+
+enum SourceType {
+  WEBSITE
+  SOCIAL
+}
+
+enum SourceGoal {
+  IDENTITY
+  CONTACT
+  SOCIAL
 }

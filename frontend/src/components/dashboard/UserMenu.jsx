@@ -8,10 +8,11 @@ function UserMenu() {
   const { logout, user } = useAuth(); 
   const [ dropdownOpen, setDropdownOpen ] = React.useState(null);
   const menuRef = React.useRef(null);
+  const menuToggleRef = React.useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (menuRef.current && !menuRef.current.contains(event.target) && !menuToggleRef.current.contains(event.target)) {
         setDropdownOpen(false);
       }
     };
@@ -24,7 +25,7 @@ function UserMenu() {
 
   return (<div>
     {user && !dropdownOpen && <span className='text-muted small me-2 d-none d-md-inline'>{user.email}</span>}
-    <button className='btn btn-outline-secondary rounded-circle p-2' onClick={() => setDropdownOpen(!dropdownOpen)}>
+    <button ref={menuToggleRef} className='btn btn-outline-secondary rounded-circle p-2' onClick={() => setDropdownOpen(!dropdownOpen)}>
       <img src='/pfp.png' alt='Profile' style={{ width: '30px', height: '30px' }} />
     </button>
     {dropdownOpen && <div 

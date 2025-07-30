@@ -30,7 +30,6 @@ app.post("/api/billing/webhook", express.raw({ type: "application/json" }), asyn
     const session = event.data.object;
     const userId = session.metadata.userId;
     const stripeSubscriptionId = session.subscription;
-    const stripeCustomerId = session.customer;
 
     // Fetch full subscription details
     const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);

@@ -69,7 +69,7 @@ router.get('/text', authorizeTokens, async (req, res) => {
 
   const textSearchUrl = `https://places.googleapis.com/v1/places:searchText?key=${process.env.GOOGLE_MAPS_KEY}`;
   const requestBody = {
-    query: query,
+    textQuery: query,
     pageSize: requestedTokens ? parseInt(requestedTokens) : 10,
     locationBias: {
       circle: {
@@ -99,7 +99,7 @@ router.get('/text', authorizeTokens, async (req, res) => {
       updatedSubscription: updatedSubscription || null
     });
   }).catch((error) => {
-    console.error("Error fetching places:", error);
+    console.error("Error fetching places:", error.response ? error.response.data : error.message);
     res.status(500).send("Error fetching places");
   });
 })

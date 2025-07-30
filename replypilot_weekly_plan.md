@@ -12,13 +12,13 @@ Set up the project structure and core systems.
 ## Week 2: Lead Scraper MVP 🟡
 Build the discovery system that finds high-quality leads based on user ICP.
 - Integrate Google Places API + Maps JavaScript Embed for lead visualization ✅
-- Add textSearch & nearbySearch for smarter, intent-based discovery 🟡
-- Use AI to generate search queries from user ICP (e.g., "cosmetic dentist Toronto")
+- Add textSearch & nearbySearch for smarter, intent-based discovery ✅
+- Use AI to generate search queries from user ICP (e.g., "cosmetic dentist Toronto")✅
 - Crawl returned websites using Puppeteer for deeper context
 - Use OpenAI to evaluate if the business matches the user's ICP
-- Score, tag, and store leads based on relevance and source
+- Score, tag, and store leads based on relevance and source 
 - Create frontend UI to display scored leads with "why this was picked"
-- Store scraped leads in DB with metadata and match score
+- Store scraped leads in DB with metadata and match score 
 
 ## Week 3: Message Engine
 Build the AI-powered message generation interface.
