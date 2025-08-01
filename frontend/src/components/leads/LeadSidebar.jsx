@@ -1,22 +1,20 @@
 // components/LeadSidebar.jsx
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useLeads } from '../../context/LeadContext';
-import { faChevronLeft, faChevronRight, faMinus, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faChevronRight, faMinus, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import React, {useState, useEffect, useRef} from 'react';
 import gsap from 'gsap';
 import '../../styles/components/LeadsStyles.css'
 
 export default function LeadSidebar() {
-  const { leads, selectLead, selectedLeadId, addLead, dataLoading, actionLoading, actionError } = useLeads();
+  const { leads, selectLead, selectedLeadId, addLead, dataLoading, actionLoading, actionError, deleteLead } = useLeads();
 
   const [isOpen, setIsOpen] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newLead, setNewLead] = useState({
     name: '',
+    location: '',
     website: '',
-    email: '',
-    phone: '',
-    notes: '',
   });
 
   const sidebarRef = useRef(null);
@@ -54,20 +52,16 @@ export default function LeadSidebar() {
   const handleAddLead = async (e) => {
     e.preventDefault();
 
-    if (!newLead.name || !newLead.website || !newLead.email ) {
+    if (!newLead.name || !newLead.location ) {
       return;
     }
 
     // Add the new lead
-    await addLead(newLead);
-    setNewLead({
-      name: '',
-      website: '',
-      email: '',
-      phone: '',
-      notes: '',
-    });
-    setShowAddForm(false);
+    try {
+      await addLead(newLead, setShowAddForm, setNewLead);
+    } catch (error) {
+      console.error('Failed to add lead:', error);
+    }
   };
 
   return (<div className="d-flex border-end h-100 position-sidebar">
@@ -84,11 +78,35 @@ export default function LeadSidebar() {
 
       {showAddForm && (<div className='p-2 border-bottom'>
         <form className="p-3 card bg-white" onSubmit={(e) => handleAddLead(e)}>
-          <input required type="text" placeholder="name" className="form-control mb-2" value={newLead.name} onChange={(e) => setNewLead({ ...newLead, name: e.target.value })} />
-          <input required type="text" placeholder="website" className="form-control mb-2" value={newLead.website} onChange={(e) => setNewLead({ ...newLead, website: e.target.value })} />
-          <input required type="email" placeholder="email" className="form-control mb-2 " value={newLead.email} onChange={(e) => setNewLead({ ...newLead, email: e.target.value })} />
-          <input type="text" placeholder="phone" className="form-control mb-2" value={newLead.phone} onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })} />
-          <textarea placeholder="notes" className="form-control mb-2" value={newLead.notes} onChange={(e) => setNewLead({ ...newLead, notes: e.target.value })}></textarea>
+          <label htmlFor="name">Name</label>
+          <input 
+            id='name' 
+            required 
+            type="text" 
+            placeholder="lead's name" 
+            className="form-control mb-2" 
+            value={newLead.name} 
+            onChange={(e) => setNewLead({ ...newLead, name: e.target.value })} 
+          />
+          <label htmlFor="website">Website</label>
+          <input 
+            id='website' 
+            type="text" 
+            placeholder="website (optional)" 
+            className="form-control mb-2" 
+            value={newLead.website} 
+            onChange={(e) => setNewLead({ ...newLead, website: e.target.value })} 
+          />
+          <label htmlFor="location">Location</label>
+          <input 
+            id='location' 
+            required 
+            type="text" 
+            placeholder="lead's location (city, country)" 
+            className="form-control mb-2 " 
+            value={newLead.location} 
+            onChange={(e) => setNewLead({ ...newLead, location: e.target.value })} 
+          />
 
           <div className='d-flex gap-2'>
             <button type="submit" className="btn btn-primary flex-grow-1">{actionLoading ? <div className="spinner-border spinner-border-sm" role="status" /> : 'Add Lead +'}</button>
@@ -97,9 +115,7 @@ export default function LeadSidebar() {
               setNewLead({
                 name: '',
                 website: '',
-                email: '',
-                phone: '',
-                notes: '',
+                location: '',
               });
             }}>Cancel</button>
           </div>
@@ -107,9 +123,11 @@ export default function LeadSidebar() {
         </form>
       </div>)}
 
+      {dataLoading && <div className="text-center p-3"><div className="spinner-border" role="status"></div></div>}
+
       {leads.map((lead, index) => (
         <div
-          className={`p-2 sidebar-lead border-bottom ${lead.id === selectedLeadId ? 'bg-white' : ''}`}
+          className={`d-flex justify-content-between p-2 sidebar-lead border-bottom ${lead.id === selectedLeadId ? 'bg-white' : ''}`}
           key={index}
           onClick={() => {
             selectLead(lead.id);
@@ -118,8 +136,17 @@ export default function LeadSidebar() {
         >
           <div ref={lead.id === selectedLeadId ? selectedLeadRef : null}>
             <h6 className='m-0'>{lead.name}</h6>
-            <small className='text-muted'>{lead.email}</small>
+            <small className='text-muted'>{lead.location}</small>
           </div>
+
+          <button className="btn btn-outline-danger btn-sm" style={{height: "min-content"}} onClick={(e) => {
+            e.stopPropagation();
+            if (window.confirm(`Are you sure you want to delete the lead "${lead.name}"?`)) {
+              deleteLead(lead.id);
+            }
+          }}>
+            <FontAwesomeIcon icon={faTrash} />
+          </button>
         </div>
       ))}
     </div>

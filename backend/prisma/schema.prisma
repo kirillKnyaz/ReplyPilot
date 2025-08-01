@@ -138,6 +138,7 @@ enum ReplyCategory {
 
 enum SourceType {
   WEBSITE
+  GCS_WEBSITE
   SOCIAL
 }
 

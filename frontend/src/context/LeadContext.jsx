@@ -24,7 +24,7 @@ export const LeadProvider = ({ children }) => {
     });
   }, []);
 
-  const addLead = (lead) => {
+  const addLead = (lead, setShowAddForm, setNewLead) => {
     setActionLoading(true);
     setActionError(null);
     API.post('/leads', lead).then((response) => {
@@ -34,13 +34,35 @@ export const LeadProvider = ({ children }) => {
       setActionError(error);
     }).finally(() => {
       setActionLoading(false);
+      setShowAddForm(false);
+      setNewLead({
+        name: '',
+        location: '',
+        website: '',
+      });
+    });
+  }
+
+  const deleteLead = (leadId) => {
+    setActionLoading(true);
+    setActionError(null);
+    API.delete(`/leads/${leadId}`).then(() => {
+      setLeads((prev) => prev.filter(lead => lead.id !== leadId));
+      if (selectedLeadId === leadId) {
+        setSelectedLeadId(null);
+      }
+    }).catch((error) => {
+      console.error('Failed to delete lead:', error);
+      setActionError(error);
+    }).finally(() => {
+      setActionLoading(false);
     });
   }
   
   const selectLead = (id) => setSelectedLeadId(id);
 
   return (
-    <LeadContext.Provider value={{ leads, addLead, selectedLeadId, selectLead, dataLoading, actionLoading, actionError }}>
+    <LeadContext.Provider value={{ leads, addLead, selectedLeadId, selectLead, dataLoading, actionLoading, actionError, deleteLead }}>
       {children}
     </LeadContext.Provider>
   );

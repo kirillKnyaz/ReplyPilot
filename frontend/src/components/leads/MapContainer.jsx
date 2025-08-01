@@ -34,7 +34,7 @@ function MapContainer({ updateSelectedPlace, places, selectedBusiness }) {
             const center = event.map.getCenter();
             updateSelectedPlace({ lat: center.lat(), lng: center.lng(), zoom: event.map.zoom });
           }}
-          style={{height: "300px"}}
+          style={{height: "450px"}}
         >
           <AdvancedMarker position={selectedMarker} />
           {places && places.map((place) => (<div key={place.id}>

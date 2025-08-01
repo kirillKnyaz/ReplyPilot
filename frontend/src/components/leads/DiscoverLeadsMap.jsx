@@ -157,71 +157,71 @@ function DiscoverLeadsMap() {
     return requests > 0 ? requests : 0;
   }
 
-  return (<>
-    <div className='container-fluid d-flex'>
-      <div className='w-100' style={{ height: 'max-content' }}>
-        {/* Map Controls */}
-        <button className='btn btn-outline-secondary me-2 mb-3' onClick={() => setSearchToggle(!searchToggle)}>
-          Switch to {searchToggle ? 'Text Search' : 'Nearby Search'}
-        </button>
+  return (<div className='container-fluid'>
+    <div className='col-12'>
+      {/* Map Controls */}
+      <button className='btn btn-outline-secondary me-2 mb-3' onClick={() => setSearchToggle(!searchToggle)}>
+        Switch to {searchToggle ? 'Text Search' : 'Nearby Search'}
+      </button>
 
-        <nav className='d-flex flex-nowrap mb-3'>
-          {searchToggle 
-          ? <select name="business_type" id="business_type" value={selectedCategory} onChange={(e) => {
-            setSelectedCategory(e.target.value);
-            localStorage.setItem('selectedCategory', e.target.value);
-          }} className='form-select me-2'>
-            {PLACE_CATEGORIES.map((cat) => (
-              <option key={cat.value} value={cat.value}>{cat.label}</option>
-            ))}
-          </select> 
-          : <div className='input-group me-2'>
-            <input type='text' value={textSearchQuery} onChange={(event) => setTextSearchQuery(event.target.value)} className='form-control' placeholder='Search...' />
-            <button className='btn btn-outline-secondary' onClick={() => handleTextSearchCompletion()} disabled={completionLoading}>
-              {completionLoading ? <div className='spinner-border spinner-border-sm' role='status' 
-              /> : <FontAwesomeIcon icon={faWandMagicSparkles}/>}
-            </button>
-          </div>}
+      <nav className='d-flex flex-nowrap mb-3'>
+        {searchToggle 
+        ? <select name="business_type" id="business_type" value={selectedCategory} onChange={(e) => {
+          setSelectedCategory(e.target.value);
+          localStorage.setItem('selectedCategory', e.target.value);
+        }} className='form-select me-2'>
+          {PLACE_CATEGORIES.map((cat) => (
+            <option key={cat.value} value={cat.value}>{cat.label}</option>
+          ))}
+        </select> 
+        : <div className='input-group me-2'>
+          <input type='text' value={textSearchQuery} onChange={(event) => setTextSearchQuery(event.target.value)} className='form-control' placeholder='Search...' />
+          <button className='btn btn-outline-secondary' onClick={() => handleTextSearchCompletion()} disabled={completionLoading}>
+            {completionLoading ? <div className='spinner-border spinner-border-sm' role='status' 
+            /> : <FontAwesomeIcon icon={faWandMagicSparkles}/>}
+          </button>
+        </div>}
 
-          <div className='input-group flex-grow-1'>
-            <span className='input-group-text'>Max Results</span>
-            <input type="number" className='form-control' max={20} placeholder='Max results' value={maxResultCount} onChange={(e) => {
-              const value = parseInt(e.target.value);
-              if (!isNaN(value) && value > 0) {
-                setMaxResultCount(value);
-              }
-            }}/>
-          </div>
-        </nav>
-        {completionError && <div className='text-danger m-0 my-3 d-flex align-items-center'>{completionError} <button className='btn p-0 m-0 ms-2' onClick={() => setCompletionError(null)}>x</button></div>}        
-
-        {/* Map Container */}
-        <MapContainer updateSelectedPlace={setSelectedPlace} places={places} selectedBusiness={selectedBusiness}/>
-        <div className="d-flex align-items-center justify-content-between mt-3 gap-2">
-          <button 
-            className='btn btn-primary' 
-            onClick={() => {
-              if (searchToggle) handleNearbySearch();
-              else handleTextSearch();
-            }} 
-            disabled={!searchButtonVisible || user.subscription.searchTokens < maxResultCount}
-          >
-            Search
-          </button> 
-          {nearbySearchLoading && <div className='spinner-border'/>}
-          {user && user.subscription && <div className='d-flex justify-content-between align-items-center'>
-            <div className={`${user.subscription.searchTokens < maxResultCount ? 'text-danger' : ''}`}>
-              {user.subscription.searchTokens} search tokens available (~{estimateAvailableRequests()} requests)
-            </div>
-            {user.subscription.searchTokens < maxResultCount && <Link to="/billing" className='btn btn-warning'>
-              Upgrade Plan
-              <FontAwesomeIcon icon={faCrown} className='ms-2'/>
-            </Link>}
-          </div>}  
+        <div className='input-group' style={{ minWidth: 'max-content', maxWidth: 'max-content' }}>
+          <span className='input-group-text'>Max Results</span>
+          <input type="number" className='form-control' max={20} placeholder='Max results' value={maxResultCount} onChange={(e) => {
+            const value = parseInt(e.target.value);
+            if (!isNaN(value) && value > 0) {
+              setMaxResultCount(value);
+            }
+          }}/>
         </div>
-        {nearbySearchError && <div className='text-danger mt-2'>{nearbySearchError}</div>}
-      </div>
+      </nav>
+      {completionError && <div className='text-danger m-0 my-3 d-flex align-items-center'>{completionError} <button className='btn p-0 m-0 ms-2' onClick={() => setCompletionError(null)}>x</button></div>}        
 
+      {/* Map Container */}
+      <MapContainer updateSelectedPlace={setSelectedPlace} places={places} selectedBusiness={selectedBusiness}/>
+      <div className="d-flex align-items-center justify-content-between mt-3 gap-2">
+        <button 
+          className='btn btn-primary' 
+          onClick={() => {
+            if (searchToggle) handleNearbySearch();
+            else handleTextSearch();
+          }} 
+          disabled={!searchButtonVisible || user.subscription.searchTokens < maxResultCount}
+        >
+          Search
+        </button> 
+        {nearbySearchLoading && <div className='spinner-border'/>}
+        {user && user.subscription && <div className='d-flex justify-content-between align-items-center'>
+          <div className={`${user.subscription.searchTokens < maxResultCount ? 'text-danger' : ''}`}>
+            {user.subscription.searchTokens} search tokens available (~{estimateAvailableRequests()} requests)
+          </div>
+          {user.subscription.searchTokens < maxResultCount && <Link to="/billing" className='btn btn-warning'>
+            Upgrade Plan
+            <FontAwesomeIcon icon={faCrown} className='ms-2'/>
+          </Link>}
+        </div>}  
+      </div>
+      {nearbySearchError && <div className='text-danger mt-2'>{nearbySearchError}</div>}
+    </div>
+
+    <div className='d-flex col-12'>
       <div className='container d-flex flex-column align-items-center mt-4' style={{overflowY: "auto", height: '400px'}}>
         {places && places.map((place, index) => (
           <div className='d-flex flex-column w-100 p-2 border-bottom' key={place.id}>
@@ -279,7 +279,7 @@ function DiscoverLeadsMap() {
         ))}
       </div>
     </div>
-  </>)
+  </div>)
 }
 
 export default DiscoverLeadsMap;

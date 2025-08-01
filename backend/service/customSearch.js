@@ -1,22 +1,36 @@
-const customSearchKey = process.env.CUSTOM_SEARCH_API_KEY;
-const searchEngineId = "53df65669469a4967";
-const axios = require('axios');
-const { response } = require('express');
+const SerpApi = require('google-search-results-nodejs');
+const search = new SerpApi.GoogleSearch(process.env.SERP_API_KEY);
 
-const customSearchRequest = async (query, page = 1) => {
-  const endpoint = `https://www.googleapis.com/customsearch/v1
-  ?key=${customSearchKey}
-  &q=${encodeURIComponent(query)}
-  &start=${(page - 1) * 10 + 1}
-  &cx=${searchEngineId}`;
-  
-  axios.get(endpoint).then((response) => {
-    return response.data;
-  }).catch((error) => {
-    throw error;
+const customSearchRequest = async (query) => {
+  return new Promise((resolve, reject) => {
+    search.json(
+      {
+        q: query,
+        hl: 'en',
+        gl: 'ca', // prioritize Canadian results
+        num: 10,
+      },
+      (data) => {
+        if (!data || !data.organic_results || data.organic_results.length === 0) {
+          return resolve([]);
+        }
+
+        const filtered = data.organic_results
+          .map(r => r.link)
+          .filter(url => url && !isBlockedDomain(url) && !url.endsWith('.pdf'));
+
+        resolve(filtered);
+      }
+    );
   });
+};
+
+function isBlockedDomain(url) {
+  const blocked = [
+    'google.com',
+    'support.google.com'
+  ];
+  return blocked.some(domain => url.includes(domain));
 }
 
-module.exports = {
-  customSearchRequest
-};
+module.exports = { customSearchRequest };
