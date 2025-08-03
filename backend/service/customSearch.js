@@ -19,6 +19,8 @@ const customSearchRequest = async (query) => {
           .map(r => r.link)
           .filter(url => url && !isBlockedDomain(url) && !url.endsWith('.pdf'));
 
+        console.log(`Found ${filtered.length} valid URLs for query "${query}"`);
+
         resolve(filtered);
       }
     );

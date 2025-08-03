@@ -3,6 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { generateTextSearchQueryFromICP } = require('../service/gpt');
 const { enrichIdentity } = require('../service/enrichLead/enrichIdentity');
+const { enrichContact } = require('../service/enrichLead/enrichContact');
 
 router.get('/', async (req, res) => {
   const userId = req.user.userId;

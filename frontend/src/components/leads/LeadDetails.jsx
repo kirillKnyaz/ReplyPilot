@@ -55,6 +55,21 @@ function LeadDetails() {
     });
   }
 
+  const handleContactEnrichment = () => {
+    setActionLoading(prev => ({ ...prev, contact: true }));
+    API.post(`/leads/${selectedLeadId}/enrich/contact`, {
+      existingData: {}
+    }).then(response => {
+      console.log('Enrichment successful:', response.data);
+      setSelectedLead(prev => ({ ...prev, ...response.data.updatedLead }));
+    }).catch(error => {
+      console.error('Error during enrichment:', error);
+      setActionError(prev => ({ ...prev, contact: error.response.data.error }));
+    }).finally(() => {
+      setActionLoading(prev => ({ ...prev, contact: false }));
+    });
+  }
+
   useEffect(() => {
     if (selectedLeadId && !selectedLead) {
       setActionError({
@@ -92,7 +107,7 @@ function LeadDetails() {
         <FontAwesomeIcon icon={faArrowRight} className='ms-2' />
         <button 
           className={`ms-2 btn btn-outline-${selectedLead.contactComplete ? 'success' : 'secondary'}`}
-          onClick={() => console.log('Explore Contact')}
+          onClick={() => handleContactEnrichment()}
           disabled={selectedLead.contactComplete || actionLoading.contact}
         >
           {actionLoading.contact ? <div className="spinner-border spinner-border-sm" role="status" /> : 'Explore Contact'}
