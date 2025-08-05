@@ -4,72 +4,58 @@ const prisma = new PrismaClient();
 const { customSearchRequest } = require('../customSearch.js');
 const puppeteer = require('puppeteer');
 
-
-// main function to enrich contact
-const enrichContact = async ({ userId, leadId }) => {
-  console.log(`Enriching contact for lead ${leadId} for user ${userId}`);
-  // load lead
-  const lead = await prisma.lead.findUnique({
-    where: { id: leadId, userId: userId },
-  });
-
-  if (!lead) {
-    throw new Error(`Lead with ID ${leadId} not found for user ${userId}`);
-  }
-
-  // get next source to use
-  const nextSource = await getNextSource(leadId);
-  if (!nextSource) {
-    throw new Error(`No valid source found for lead ${leadId}`);
-  }
-
-  // scrape the next source
-  //return updatedLead;
-};
-
-// function to get the next source for enrichment
-const getNextSource = async (leadId) => {
-  console.log(`Getting next source for lead ${leadId}`);
-  // fetch the lead and its sources
+// main worflow
+const enrichContact = async (leadId) => {
+  // get lead details in the first place
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
-    include: { 
-      sources: {
-        where: { goal: 'CONTACT' }
-      } 
-    },
+    include: { sources: true }
   });
-
-  const urls = new Set(lead.sources.map(source => source.url));
-
-  // look if a website has been used for contact enrichment
-  if (lead.website && !urls.has(lead.website)) {
-    console.log(`Using lead's website for contact enrichment: ${lead.website}`);
-    return lead.website;
-  }
-
-  // if the lead has no website and it hasnt been provided, look on the web
-  if (!lead.website) {
-    return null; // no website to scrape for now : TODO : Implement web search
-    console.log(`Lead has no website, searching for contact info online...`);
-    const query = `${lead.name} ${lead.location} contact`;
-    const searchResults = await customSearchRequest(query);
-    if (searchResults && searchResults.length > 0) {
-      console.log(`Found ${searchResults.length} potential contact URLs.`);
-      return searchResults[0]; // return the first result for now
-    }
-  }
+  // get the next source to enrich
+  // if no source is available (equal to null), return null
+  // scrape to get data
+  // save the data to the lead
+  // if no data was found or the data was not enough, look again
+  // if enough data was found or all sources were exhausted, return the data
 }
 
-const scrapeWebsiteForContact = async (url) => {
-  console.log(`Scraping website for contact info: ${url}`);
-  
-  const browser = await puppeteer.launch({ headless: 'new' });
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  
-  const htmlDOM = await page.content();
-  
+const getNextContactSource = async (lead) => {
+  // check if contacts are already enriched
+  const notFoundFlags = {
+    website: lead.website ? false : true,
+    email: lead.email ? false : true,
+    phone: lead.phone ? false : true,
+    instagram: lead.instagram ? false : true,
+    facebook: lead.facebook ? false : true,
+    tiktok: lead.tiktok ? false : true,
+  }
+
+  // if all sources are enriched, return null
+  if (Object.values(notFoundFlags).every(flag => flag)) {
+    throw new Error('All contact sources for this lead are already enriched. No further action is required.');
+  }
+
+  // step by step, start checking the sources
+  // first, the lead's website
+  if (lead.website !== null && lead.website !== '') return lead.website;
+
+  // if website is not provided straight away, check all the sources 
+  if (lead.sources.length > 0) {
+    lead.sources.map(source => {
+      if (source.type === 'WEBSITE' || source.type === 'GCS_WEBSITE') return source.url;
+      if (source.type === 'SOCIAL') return source.url;
+    });
+  }
+
+  // if website not provided from places, search manually
+  const searchQuery = `${lead.name} ${lead.location} contact`;
+  const searchResults = await customSearchRequest(searchQuery);
+  if (searchResults.length === 0 || searchResults === null) throw new Error('No search results');
+
+  // inside search results, look for the first website that matches the lead's name
+  // if no website was found, look for facebook, then instagram, then tiktok
+
+  // if nothing comes up, return null, no more sources to check
 }
 
 module.exports = {
