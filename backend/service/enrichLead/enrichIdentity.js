@@ -1,6 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { customSearchRequest } = require('../customSearch.js');
+const { getNextSource } = require('../getNextSource.js');
 const { evaluateIdentityWithGPT } = require('./enrichGpt');
 const puppeteer = require('puppeteer');
 
@@ -18,13 +18,11 @@ const enrichIdentity = async ({
   }
 
   // get next source to use
-  const nextSource = await getNextSource(leadId);
-  if (!nextSource) {
-    throw new Error(`No valid source found for lead ${leadId}`);
-  }
+  const {url, type} = await getNextSource(leadId);
+  if (!url || !type) throw new Error(`No valid source found for lead ${leadId}`);
 
   // scrape the next source
-  const htmlContent = await scrapePageText(nextSource);
+  const htmlContent = await scrapePageText(url);
 
   // evaluate the scraped content with GPT
   const gptResult = await evaluateIdentityWithGPT(htmlContent, {
@@ -36,7 +34,7 @@ const enrichIdentity = async ({
     const updatedLead = await prisma.lead.update({
       where: { id: leadId, userId: userId },
       data: {
-        website: nextSource,
+        website: url,
         identityComplete: gptResult.completed,
         description: gptResult.description,
         type: gptResult.type,
@@ -53,7 +51,7 @@ const enrichIdentity = async ({
   const updatedLead = await prisma.lead.update({
     where: { id: leadId, userId: userId },
     data: {
-      website: nextSource,
+      website: url,
       identityComplete: gptResult.completed,
       description: gptResult.description,
       type: gptResult.type,
@@ -67,67 +65,6 @@ const enrichIdentity = async ({
   });
 
   return updatedLead;
-};
-
-const getNextSource = async (leadId) => {
-  const lead = await prisma.lead.findUnique({
-    where: { id: leadId },
-    include: {
-      sources: {
-        where: { goal: 'IDENTITY' },
-        select: { url: true },
-      },
-    },
-  });
-
-  const urls = new Set(lead.sources.map((source) => source.url));
-
-  // check if there is a website available and hasn't been used first
-  if (lead.website && !urls.has(lead.website)) {
-    try {
-      const createdSource = await prisma.leadSource.create({
-        data: {
-          leadId: lead.id,
-          url: lead.website,
-          goal: 'IDENTITY',
-          type: 'WEBSITE',
-        },
-        select: { url: true },
-      });
-
-      return createdSource.url;
-    } catch (error) {
-      throw new Error(`Error creating source for lead ${leadId}: ${error.message}`);
-    }
-  }
-
-  // fallback: search the web
-  try {
-    const query = `${lead.name} ${lead.location} website`;
-    const webSearchItems = await customSearchRequest(query);
-
-    for (const link of webSearchItems) {
-      const isLikelyHomepage = /|about|home|contact|index/i.test(link) || link.length < 60;
-
-      if (!urls.has(link) && isLikelyHomepage) {
-        const createdSource = await prisma.leadSource.create({
-          data: {
-            leadId: lead.id,
-            url: link,
-            goal: 'IDENTITY',
-            type: 'GCS_WEBSITE',
-          },
-          select: { url: true },
-        });
-
-        return createdSource.url;
-      }
-    }
-  } catch (error) {
-    throw error;
-  }
-
-  return null;
 };
 
 const scrapePageText = async (url) => {

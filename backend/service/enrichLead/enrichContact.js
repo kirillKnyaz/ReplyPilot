@@ -1,7 +1,7 @@
 // imports
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { customSearchRequest } = require('../customSearch.js');
+const { customSearchRequest, getNextSource } = require('../getNextSource.js');
 const puppeteer = require('puppeteer');
 const stringSimilarity = require('string-similarity');
 
@@ -16,7 +16,7 @@ const enrichContact = async (leadId) => {
   let { url, type } = {};
   try {
     // get the next source to enrich
-    ({ url, type } = await getNextContactSource(lead));
+    ({ url, type } = await getNextSource(lead));
     // if no source is available (equal to null), return null
     if (!url || url === null) throw new Error('No contact sources available for enrichment.');
     // if there is a source, save it now
@@ -43,78 +43,20 @@ const enrichContact = async (leadId) => {
       email: scrapedData.email || lead.email,
       facebook: scrapedData.facebook || lead.facebook,
       instagram: scrapedData.instagram || lead.instagram,
-      tiktok: scrapedData.tiktok || lead.tiktok
-    }
+      tiktok: scrapedData.tiktok || lead.tiktok,
+      // track if contact info is complete
+      contactComplete: !!(
+        scrapedData.phone || lead.phone 
+        && scrapedData.email || lead.email 
+        && scrapedData.facebook || lead.facebook 
+        && scrapedData.instagram || lead.instagram 
+        && scrapedData.tiktok || lead.tiktok
+      )
+    },
+    include: { sources: true }
   });
 
   return updatedLead;
-}
-
-const getNextContactSource = async (lead) => {
-  // check if contacts are already enriched
-  const foundFlags = {
-    website: lead.website ? true : false,
-    email: lead.email ? true : false,
-    phone: lead.phone ? true : false,
-    instagram: lead.instagram ? true : false,
-    facebook: lead.facebook ? true : false,
-    tiktok: lead.tiktok ? true : false,
-  }
-
-  // if all sources are enriched, return null
-  if (Object.values(foundFlags).every(flag => flag)) return { url: null, type: null };
-
-  // step by step, start checking the sources
-  // first, the lead's website
-  if (lead.website !== null && lead.website !== '') return { url: lead.website, type: 'WEBSITE' };
-
-  // if website is not provided straight away, check all the sources 
-  if (lead.sources.length > 0) {
-    for (const source of lead.sources) {
-      if (source.type === 'WEBSITE' || source.type === 'GCS_WEBSITE') return { url: source.url, type: source.type };
-      if (source.type === 'SOCIAL') return {url: source.url, type: source.type};
-    }
-  }
-
-  // if website not provided from places, search manually
-  const searchQuery = `${lead.name} ${lead.location} contact`;
-  const searchResults = await customSearchRequest(searchQuery);
-  if (searchResults.length === 0 || searchResults === null) throw new Error('No search results');
-
-  for (const result of searchResults) {
-    const url = result.url;
-    // check if the URL is a valid website
-    if (url && url.startsWith('https') && !isBlockedDomain(url)) {
-      // inside search results, look for the first website that matches the lead's name
-      // check string similarity to the lead name
-      const { hostname } = new URL(url);
-      const leadName = lead.name.toLowerCase();
-      const similarity = stringSimilarity.compareTwoStrings(leadName, hostname);
-      console.log(`Checking URL: ${url}, similarity: ${similarity} for lead: ${leadName}`);
-      if (similarity > 0.6) {
-        return { url: url, type: 'GCS_WEBSITE' };
-      }
-      
-      // if no website was found, look for facebook, then instagram, then tiktok
-      switch (url) {
-        case url.includes('facebook.com'):
-          if (!foundFlags.facebook) return { url: url, type: 'SOCIAL' };
-          break;
-        case url.includes('instagram.com'):
-          if (!foundFlags.instagram) return { url: url, type: 'SOCIAL' };
-          break;
-        case url.includes('tiktok.com'):
-          if (!foundFlags.tiktok) return { url: url, type: 'SOCIAL' };
-          break;
-        default:
-          // if no social media was found, return null
-          return { url: null, type: null };
-      }
-    }
-  }
-
-  // if nothing comes up, return null, no more sources to check
-  return { url: null, type: null };
 }
 
 const tryClosePopups = async (page) => {
@@ -138,13 +80,13 @@ const tryClosePopups = async (page) => {
   }
 };
 
-const scrapeSourceForContact = async (url, type) => {
+const scrapeSourceForContact = async (url, type, lead) => {
   let foundData = {
-    phone: null,
-    email: null,
-    facebook: null,
-    instagram: null,
-    tiktok: null
+    phone: lead.phone ?? null,
+    email: lead.email ?? null,
+    facebook: lead.facebook ?? null,
+    instagram: lead.instagram ?? null,
+    tiktok: lead.tiktok ?? null
   };
 
   const browser = await puppeteer.launch({
