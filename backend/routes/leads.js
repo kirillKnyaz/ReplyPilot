@@ -1,9 +1,8 @@
 const router = require('express').Router();
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma.js');
 const { generateTextSearchQueryFromICP } = require('../service/gpt');
-const { enrichIdentity } = require('../service/enrichLead/enrichIdentity');
-const { enrichContact } = require('../service/enrichLead/enrichContact');
+const { enrichIdentity } = require('../service/enrichLead/identity');
+const { enrichContact } = require('../service/enrichLead/contact');
 
 router.get('/', async (req, res) => {
   const userId = req.user.userId;
@@ -24,18 +23,30 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const userId = req.user.userId;
 
-  const { name, website, location } = req.body;
+  const { name, website, location, additionalData } = req.body;
   if (!name || !location) {
     return res.status(400).json({ message: 'Name and location are required' });
   }
 
   try {
+    const existingLead = await prisma.lead.findUnique({
+      where: {
+        placesId: additionalData.placesId
+      }
+    })
+
+    if (existingLead) {
+      return res.status(409).json({ message: 'Lead with this Places ID already exists' });
+    }
+
     const lead = await prisma.lead.create({
       data: {
         userId,
         name,
         website: website || null,
         location,
+        mapsUri: additionalData.googleMapsUri ?? null,
+        placesId: additionalData.placesId ?? null,
       }
     });
     res.status(201).json(lead);
@@ -93,12 +104,12 @@ router.post('/:id/enrich/identity', async (req, res) => {
   const leadId = req.params.id;
 
   try{
-    const updatedLead = await enrichIdentity({
+    const { updatedLead, gptEval } = await enrichIdentity({
       userId,
       leadId,
     });
 
-    return res.json({ updatedLead });
+    return res.json({ updatedLead, gptEval });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to enrich identity', error: error.message });
   }
@@ -109,12 +120,12 @@ router.post('/:id/enrich/contact', async (req, res) => {
   const leadId = req.params.id;
 
   try {
-    const updatedLead = await enrichContact({
+    const { updatedLead, eval } = await enrichContact({
       userId,
       leadId,
     });
 
-    return res.json({ updatedLead });
+    return res.json({ updatedLead, eval });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to enrich contact', error: error.message });
   }
@@ -133,6 +144,19 @@ router.post('/:id/enrich/social', async (req, res) => {
     return res.json({ updatedLead });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to enrich social', error: error.message });
+  }
+})
+
+router.get('/:id/enrich/status/:goal', async (req, res) => {
+  const userId = req.user.userId;
+  const leadId = req.params.id;
+  const goal = req.params.goal;
+
+  try {
+    const log = await getLatestLog({ userId, leadId, goal });
+    res.json({ log });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch enrichment status', error: error.message });
   }
 })
 

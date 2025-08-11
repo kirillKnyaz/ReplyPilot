@@ -1,8 +1,10 @@
 const SerpApi = require('google-search-results-nodejs');
 const search = new SerpApi.GoogleSearch(process.env.SERP_API_KEY);
 const stringSimilarity = require('string-similarity');
+const { startEnrichmentStep, updateEnrichmentStep } = require('./logger.js');
 
 const customSearchRequest = async (query) => {
+  console.log(`Performing custom search for query: ${query}`);
   return new Promise((resolve, reject) => {
     search.json(
       {
@@ -28,7 +30,9 @@ const customSearchRequest = async (query) => {
   });
 };
 
-const getNextSource = async (lead) => {
+const getNextSource = async (lead, goal) => {
+  const logId = await startEnrichmentStep({ userId: lead.userId, leadId: lead.id, goal, step: 'GET_SOURCE' });
+  console.log(`Getting next source for lead: ${lead.name}`);
   // check if contacts are already enriched
   const foundFlags = {
     website: lead.website ? true : false,
@@ -40,27 +44,41 @@ const getNextSource = async (lead) => {
   }
 
   // if all sources are enriched, return null
-  if (Object.values(foundFlags).every(flag => flag)) return { url: null, type: null };
+  if (Object.values(foundFlags).every(flag => flag)) {
+    await updateEnrichmentStep(logId, 'SUCCESS', `All sources already enriched for lead: ${lead.name}`);
+    return { url: null, type: null };
+  }
 
   // step by step, start checking the sources
   // first, the lead's website
-  if (lead.website !== null && lead.website !== '') return { url: lead.website, type: 'WEBSITE' };
+  if (lead.website !== null && lead.website !== '') {
+    await updateEnrichmentStep(logId, 'SUCCESS', `Found website source: ${lead.website}`);
+    return { url: lead.website, type: 'WEBSITE' };
+  }
 
   // if website is not provided straight away, check all the sources 
   if (lead.sources.length > 0) {
     for (const source of lead.sources) {
-      if (source.type === 'WEBSITE' || source.type === 'GCS_WEBSITE') return { url: source.url, type: source.type };
-      if (source.type === 'SOCIAL') return {url: source.url, type: source.type};
+      if (source.type === 'WEBSITE' || source.type === 'GCS_WEBSITE') { 
+        await updateEnrichmentStep(logId, 'SUCCESS', `Found website source: ${source.url}`);
+        return { url: source.url, type: source.type };
+      }
+      if (source.type === 'SOCIAL') {
+        await updateEnrichmentStep(logId, 'SUCCESS', `Found social source: ${source.url}`);
+        return { url: source.url, type: source.type };
+      }
     }
   }
 
   // if website not provided from places, search manually
   const searchQuery = `${lead.name} ${lead.location} contact`;
-  const searchResults = await customSearchRequest(searchQuery);
-  if (searchResults.length === 0 || searchResults === null) throw new Error('No search results');
+  const searchResultUrls = await customSearchRequest(searchQuery);
+  if (searchResultUrls.length === 0 || searchResultUrls === null) {
+    await updateEnrichmentStep(logId, 'ERROR', `No search results found for query: ${searchQuery}`);
+    throw new Error('No search results');
+  }
 
-  for (const result of searchResults) {
-    const url = result.url;
+  for (const url of searchResultUrls) {
     // check if the URL is a valid website
     if (url && url.startsWith('https') && !isBlockedDomain(url)) {
       // inside search results, look for the first website that matches the lead's name
@@ -70,28 +88,42 @@ const getNextSource = async (lead) => {
       const similarity = stringSimilarity.compareTwoStrings(leadName, hostname);
       console.log(`Checking URL: ${url}, similarity: ${similarity} for lead: ${leadName}`);
       if (similarity > 0.6) {
+        await updateEnrichmentStep(logId, 'SUCCESS', `Found GCS website source: ${url}`);
         return { url: url, type: 'GCS_WEBSITE' };
       }
       
       // if no website was found, look for facebook, then instagram, then tiktok
       switch (url) {
         case url.includes('facebook.com'):
-          if (!foundFlags.facebook) return { url: url, type: 'SOCIAL' };
+          if (!foundFlags.facebook) {
+            await updateEnrichmentStep(logId, 'SUCCESS', `Found Facebook source: ${url}`);
+            return { url: url, type: 'SOCIAL' };
+          }
           break;
         case url.includes('instagram.com'):
-          if (!foundFlags.instagram) return { url: url, type: 'SOCIAL' };
+          if (!foundFlags.instagram) {
+            await updateEnrichmentStep(logId, 'SUCCESS', `Found Instagram source: ${url}`);
+            return { url: url, type: 'SOCIAL' };
+          }
           break;
         case url.includes('tiktok.com'):
-          if (!foundFlags.tiktok) return { url: url, type: 'SOCIAL' };
+          if (!foundFlags.tiktok) {
+            await updateEnrichmentStep(logId, 'SUCCESS', `Found TikTok source: ${url}`);
+            return { url: url, type: 'SOCIAL' };
+          }
           break;
         default:
           // if no social media was found, return null
-          return { url: null, type: null };
+          {
+            await updateEnrichmentStep(logId, 'ERROR', `No valid social media found for URL: ${url}`);
+            return { url: null, type: null };
+          }
       }
     }
   }
 
   // if nothing comes up, return null, no more sources to check
+  await updateEnrichmentStep(logId, 'ERROR', 'No valid sources found for lead');
   return { url: null, type: null };
 }
 

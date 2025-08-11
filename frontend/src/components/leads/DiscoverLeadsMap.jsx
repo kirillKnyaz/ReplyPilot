@@ -125,10 +125,19 @@ function DiscoverLeadsMap() {
 
     const leadData = {
       name: place.displayName.text,
-      website: place.websiteUri || 'no website',
-      email: 'no email', // Placeholder, you might want to implement a way to collect emails
-      phone: '', // Placeholder, you might want to implement a way to collect phone numbers
-      notes: `Found via ${searchToggle ? 'Nearby Search' : 'Text Search'}\nCategory: ${selectedCategory}\nLocation: ${place.addressComponents ? place.addressComponents[4].longText : 'N/A'}`
+      websiteUri: place.websiteUri || null,
+      location: `
+      ${place.addressComponents 
+        ? place.addressComponents[4].longText 
+        : 'N/A'} 
+      ${place.addressComponents 
+        ? place.addressComponents[3].longText 
+        : 'N/A'}
+      `,
+      additionalData: {
+        googleMapsUri: place.googleMapsUri,
+        placesId: place.id,
+      }
     };
 
     addLead(leadData);

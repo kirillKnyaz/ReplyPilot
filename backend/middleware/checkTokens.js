@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../lib/prisma.js');
 
 async function authorizeTokens(req, res, next) {
   const user = req.user; // Assuming user is set by a previous middleware

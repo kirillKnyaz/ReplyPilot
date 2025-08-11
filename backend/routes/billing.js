@@ -1,11 +1,9 @@
 // /backend/routes/billing.js
 const express = require("express");
 const Stripe = require("stripe");
-const { PrismaClient } = require("@prisma/client"); // Adjust the path as necessary
+const prisma = require('../lib/prisma.js');
 const router = express.Router();
-
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-const prisma = new PrismaClient();
 
 // Create a Checkout session
 router.post("/create-checkout-session", async (req, res) => {

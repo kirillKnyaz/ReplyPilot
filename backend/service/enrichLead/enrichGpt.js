@@ -2,6 +2,7 @@ const { OpenAI } = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const evaluateIdentityWithGPT = async (rawText, leadInfo = {}) => {
+  console.log(`Evaluating identity with GPT for lead: ${leadInfo.name || 'Unknown'}`);
   const prompt = `
   You're a lead enrichment AI. Your job is to analyze business data and determine whether there's enough information to understand what the business does. If the data is insufficient, you must say so. If it's enough, return a structured summary of the business.
 

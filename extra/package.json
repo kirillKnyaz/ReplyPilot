@@ -1,0 +1,18 @@
+{
+  "name": "medspa-lead-audit",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Pulls Google Place details, scrapes websites, and uses GPT to flag weak points.",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@googlemaps/google-maps-services-js": "^3.3.45",
+    "axios": "^1.7.2",
+    "cheerio": "^1.1.0",
+    "dotenv": "^16.4.5",
+    "openai": "^4.52.0",
+    "p-limit": "^5.0.0",
+    "papaparse": "^5.4.1"
+  }
+}

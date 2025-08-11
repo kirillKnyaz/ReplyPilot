@@ -55,7 +55,7 @@ model Lead {
   userId        String
   user          User     @relation(fields: [userId], references: [id])    
   mapsUri       String?
-  placesId      String?
+  placesId      String?  @unique
   location      String
   
   name          String
@@ -80,6 +80,7 @@ model Lead {
 
   messages      Message[]
   sources       LeadSource[]
+  logs          LeadEnrichmentLog[]
 }
 
 model LeadSource {
@@ -89,6 +90,21 @@ model LeadSource {
   goal       SourceGoal     
   type       SourceType
   url        String
+}
+
+model LeadEnrichmentLog {
+  id         String           @id @default(uuid())
+  leadId     String
+  userId     String
+  goal       SourceGoal
+  step       EnrichmentStep
+  status     EnrichmentStatus
+  message    String?
+  attempt    Int              @default(1)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  lead       Lead             @relation(fields: [leadId], references: [id])
 }
 
 model Message {
@@ -146,4 +162,17 @@ enum SourceGoal {
   IDENTITY
   CONTACT
   SOCIAL
+}
+
+enum EnrichmentStep {
+  GET_LEAD
+  GET_SOURCE
+  SCRAPE_SOURCE
+  EVALUATE_GPT
+}
+
+enum EnrichmentStatus {
+  STARTED
+  SUCCESS
+  ERROR
 }
