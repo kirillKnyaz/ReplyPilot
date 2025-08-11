@@ -4,6 +4,76 @@ const { generateTextSearchQueryFromICP } = require('../service/gpt');
 const { enrichIdentity } = require('../service/enrichLead/identity');
 const { enrichContact } = require('../service/enrichLead/contact');
 
+// routes/leads.js
+router.patch('/:id', async (req, res) => {
+  const userId = req.user.userId;
+  const leadId = req.params.id;
+
+  // Only allow updating these fields manually
+  const allowed = [
+    'name', 'type', 'description', 'keywords',
+    'website', 'email', 'phone',
+    'instagram', 'facebook', 'tiktok',
+    'location', // optional if you want it editable
+  ];
+
+  try {
+    const existing = await prisma.lead.findFirst({
+      where: { id: leadId, userId },
+    });
+    if (!existing) return res.status(404).json({ message: 'Lead not found' });
+
+    // Build update payload from allowed fields
+    const data = {};
+    for (const k of allowed) {
+      if (k in req.body) data[k] = req.body[k];
+    }
+
+    // Normalize keywords (string -> array)
+    if ('keywords' in data && typeof data.keywords === 'string') {
+      data.keywords = data.keywords
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    // Merge to compute flags from the final state
+    const merged = { ...existing, ...data };
+
+    const identityComplete = Boolean(
+      (merged.type && merged.type.trim()) ||
+      (merged.description && merged.description.trim()) ||
+      (Array.isArray(merged.keywords) && merged.keywords.length > 0)
+    );
+
+    const contactComplete = Boolean(
+      (merged.website && merged.website.trim()) ||
+      (merged.email && merged.email.trim()) ||
+      (merged.phone && merged.phone.trim())
+    );
+
+    const socialComplete = Boolean(
+      (merged.instagram && merged.instagram.trim()) ||
+      (merged.facebook && merged.facebook.trim()) ||
+      (merged.tiktok && merged.tiktok.trim())
+    );
+
+    data.identityComplete = identityComplete;
+    data.contactComplete  = contactComplete;
+    data.socialComplete   = socialComplete;
+
+    const updated = await prisma.lead.update({
+      where: { id: leadId },
+      data,
+      include: { sources: true },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to update lead', error: err.message });
+  }
+});
+
 router.get('/', async (req, res) => {
   const userId = req.user.userId;
 
@@ -31,7 +101,7 @@ router.post('/', async (req, res) => {
   try {
     const existingLead = await prisma.lead.findUnique({
       where: {
-        placesId: additionalData.placesId
+        placesId: additionalData.placesId,
       }
     })
 

@@ -51,6 +51,28 @@ router.get('/nearby', authorizeTokens, (req, res) => {
       updatedSubscription = await updateNearbyBalance(userId, response.data.places.length);
     }
 
+    const tokensUsed = (response.data.places && response.data.places.length) || 0;
+
+    try {
+      await prisma.searchResult.create({
+        data: {
+          userId,
+          type: 'NEARBY',
+          centerLat: parseFloat(lat),
+          centerLng: parseFloat(lng),
+          radiusMeters: parseInt(radius, 10),
+          category,
+          textQuery: null,
+          maxResultCount: requestedTokens ? parseInt(requestedTokens) : 10,
+          placesCount: tokensUsed,
+          tokensCharged: tokensUsed,
+          results: response.data.places || []
+        }
+      });
+    } catch (e) {
+      console.error('Failed to persist NEARBY searchResult', e);
+    }
+
     res.json({
       message: 'Places fetched successfully', 
       places: response.data.places ? [...response.data.places] : [],
@@ -92,6 +114,29 @@ router.get('/text', authorizeTokens, async (req, res) => {
       console.log("Text search balance updated successfully", response.data.places.length, updatedSubscription);
     }
 
+    // similar block inside /text after updateNearbyBalance(...)
+    const tokensUsed = (response.data.places && response.data.places.length) || 0;
+
+    try {
+      await prisma.searchResult.create({
+        data: {
+          userId,
+          type: 'TEXT',
+          centerLat: parseFloat(lat),
+          centerLng: parseFloat(lng),
+          radiusMeters: parseInt(radius, 10),
+          category: null,
+          textQuery: query,
+          maxResultCount: requestedTokens ? parseInt(requestedTokens) : 10,
+          placesCount: tokensUsed,
+          tokensCharged: tokensUsed,
+          results: response.data.places || []
+        }
+      });
+    } catch (e) {
+      console.error('Failed to persist TEXT searchResult', e);
+    }
+
     res.json({
       message: 'Places fetched successfully', 
       places: response.data.places ? [...response.data.places] : [],
@@ -102,5 +147,22 @@ router.get('/text', authorizeTokens, async (req, res) => {
     res.status(500).send("Error fetching places");
   });
 })
+
+// search.js
+router.get('/history', authorizeTokens, async (req, res) => {
+  const userId = req.user.userId;
+  const { limit = 20 } = req.query;
+  try {
+    const rows = await prisma.searchResult.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(parseInt(limit, 10) || 20, 100)
+    });
+    res.json(rows);
+  } catch (e) {
+    console.error('history error', e);
+    res.status(500).send('Failed to load history');
+  }
+});
 
 module.exports = router;

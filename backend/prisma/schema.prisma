@@ -23,6 +23,8 @@ model User {
   subscription   Subscription?
   leads          Lead[]
   messages       Message[]
+  searchResults  SearchResult[]
+  lists          List[]
 }
 
 model UserProfile {
@@ -81,6 +83,45 @@ model Lead {
   messages      Message[]
   sources       LeadSource[]
   logs          LeadEnrichmentLog[]
+  lists         LeadList[]
+}
+
+// lead lists here
+model List {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  color     String?    // optional hex or token like "indigo"
+
+  items     LeadList[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Prevent duplicate list names per user; remove if you want duplicates
+  @@unique([userId, name])
+  @@index([userId, createdAt])
+}
+
+model LeadList {
+  id        String   @id @default(cuid())
+
+  listId    String
+  leadId    String
+
+  // For custom ordering within a list; nullable if you don't care yet
+  position  Float?
+
+  createdAt DateTime @default(now())
+
+  list      List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  // Don’t allow the same lead twice in the same list
+  @@unique([listId, leadId])
+  @@index([leadId])
 }
 
 model LeadSource {
@@ -130,6 +171,39 @@ model Reply {
   repliedAt  DateTime       @default(now())
   sentiment  Sentiment
   category   ReplyCategory
+}
+
+// schema.prisma
+enum SearchType {
+  NEARBY
+  TEXT
+}
+
+model SearchResult {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type            SearchType
+  centerLat       Float
+  centerLng       Float
+  radiusMeters    Int
+
+  // one of the two depending on type
+  category        String?
+  textQuery       String?
+
+  maxResultCount  Int
+  placesCount     Int
+  tokensCharged   Int       @default(0)
+
+  // raw Google Places response payload you care about
+  results         Json
+
+  createdAt       DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
 }
 
 enum MessageStatus {

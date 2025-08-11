@@ -27,72 +27,72 @@ const PLACE_CATEGORIES = [
   { value: "dentist", label: "Dentist" },
   { value: "moving_company", label: "Moving Company" },
   { value: "storage", label: "Storage" },
-  { value: "event_venue", label: "Event Venue" },
-  { }
+  { value: "event_venue", label: "Event Venue" }
 ];
 
-function DiscoverLeadsMap() {
+function DiscoverLeadsMap({ discovery, setDiscovery }) {
   const { user, updateUserSubscription } = useAuth();
   const { addLead, selectLead, actionLoading, actionError } = useLeads();
 
-  const [searchToggle, setSearchToggle] = useState(true);
+  const {
+    searchToggle, selectedCategory, textSearchQuery, maxResultCount,
+    selectedPlace, searchButtonVisible, nearbySearchLoading, nearbySearchError,
+    places, selectedBusiness, completionLoading, completionError, 
+    history, historyLoading, historyError
+  } = discovery;
 
-  const [selectedCategory, setSelectedCategory] = useState(localStorage.getItem('selectedCategory') || 'restaurant');
-  const [textSearchQuery, setTextSearchQuery] = useState('');
-  const [completionLoading, setCompletionLoading] = useState(false);
-  const [completionError, setCompletionError] = useState(null);
-  const [maxResultCount, setMaxResultCount] = useState(10);
-
-  const [selectedPlace, setSelectedPlace] = useState(null);
-  const [searchButtonVisible, setSearchButtonVisible] = useState(true);
-  const [nearbySearchLoading, setNearbySearchLoading] = useState(false);
-  const [nearbySearchError, setNearbySearchError] = useState(null);
-
-  const [places, setPlaces] = useState([]);
-
-  const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const set = (patch) => setDiscovery(prev => ({ ...prev, ...patch }));
 
   useEffect(() => {
-    setSearchButtonVisible(false);
+    set({ searchButtonVisible: false });
     if (searchToggle) {
       if (selectedPlace) {
-        setSearchButtonVisible(true);
+        set({ searchButtonVisible: true });
       }
     } else {
       if (textSearchQuery.trim() !== '' && selectedPlace) {
-        setSearchButtonVisible(true);
+        set({ searchButtonVisible: true });
       } else {
-        setSearchButtonVisible(false);
+        set({ searchButtonVisible: false });
       }
     }
 
   }, [selectedPlace, selectedCategory, textSearchQuery, maxResultCount, searchToggle]);
 
+  const loadHistory = async () => {
+    set({ historyLoading: true, historyError: null });
+    try {
+      const res = await API.get('/search/history?limit=20');
+      set({ history: res.data });
+    } catch (e) {
+      set({ historyError: 'Failed to load search history' });
+    } finally {
+      set({ historyLoading: false });
+    }
+  };
+
+  useEffect(() => { loadHistory(); }, []);
+
   const handleNearbySearch = async () => {
-    setSearchButtonVisible(false);
-    setNearbySearchLoading(true);
-    setNearbySearchError(null);
+    set({ searchButtonVisible: false, nearbySearchLoading: true, nearbySearchError: null });
     
     const { lat, lng, zoom } = selectedPlace;
-    const radius = (156543.03392 * Math.cos(lat * Math.PI / 180)) / Math.pow(2, zoom) * 100; // meters
+    const radius = (156543.03392 * Math.cos(lat * Math.PI / 180)) / Math.pow(2, zoom) * 100;
 
     API.get(`/search/nearby?lat=${lat}&lng=${lng}&radius=${radius}&category=${selectedCategory}&requestedTokens=${maxResultCount}`)
-    .then((response) => {
-      console.log("Response data:", response.data);
-      setPlaces(response.data.places);
-      updateUserSubscription(response.data.updatedSubscription);
-    }).catch((error) => {
-      console.error("Error fetching places:", error);
-      setNearbySearchError(error.response.data.message || "Failed to fetch places");
-    }).finally(() => {
-      setNearbySearchLoading(false);
-    });
+      .then((response) => {
+        set({ places: response.data.places });
+        updateUserSubscription(response.data.updatedSubscription);
+        loadHistory();
+      })
+      .catch((error) => set({
+        nearbySearchError: (error.response && error.response.data && error.response.data.message) || "Failed to fetch places"
+      }))
+      .finally(() => set({ nearbySearchLoading: false }));
   };
 
   const handleTextSearch = async () => {
-    setSearchButtonVisible(false);
-    setNearbySearchLoading(true);
-    setNearbySearchError(null);
+    set({ searchButtonVisible: false, nearbySearchLoading: true, nearbySearchError: null });
 
     const { lat, lng, zoom } = selectedPlace;
     const radius = (156543.03392 * Math.cos(lat * Math.PI / 180)) / Math.pow(2, zoom) * 100; // meters
@@ -100,14 +100,14 @@ function DiscoverLeadsMap() {
     API.get(`/search/text?lat=${lat}&lng=${lng}&radius=${radius}&query=${textSearchQuery}&requestedTokens=${maxResultCount}`)
     .then((response) => {
       console.log("Text search response data:", response.data);
-      setPlaces(response.data.places);
+      set({ places: response.data.places });
       updateUserSubscription(response.data.updatedSubscription);
+      loadHistory();
     }).catch((error) => {
       console.error("Error fetching text search results:", error);
-      setNearbySearchError(error.response.data.message || "Failed to fetch text search results");
+      set({ nearbySearchError: error.response.data.message || "Failed to fetch text search results" });
     }).finally(() => {
-      setNearbySearchLoading(false);
-      setTextSearchQuery('');
+      set({ nearbySearchLoading: false, textSearchQuery: '' });
     });
   }
 
@@ -125,36 +125,31 @@ function DiscoverLeadsMap() {
 
     const leadData = {
       name: place.displayName.text,
-      websiteUri: place.websiteUri || null,
-      location: `
-      ${place.addressComponents 
-        ? place.addressComponents[4].longText 
-        : 'N/A'} 
-      ${place.addressComponents 
-        ? place.addressComponents[3].longText 
-        : 'N/A'}
-      `,
+      website: place.websiteUri || null,
+      location: `${place.addressComponents ? place.addressComponents[4]?.longText : ''} ${place.addressComponents ? place.addressComponents[3]?.longText : ''}`,
       additionalData: {
         googleMapsUri: place.googleMapsUri,
         placesId: place.id,
       }
     };
 
+    console.log("Saving lead data:", leadData);
+
     addLead(leadData);
   }
 
   const handleTextSearchCompletion = () => {
-    setCompletionLoading(true);
+    set({ completionLoading: true, completionError: null });
     
     API.get('/leads/generateQuery').then((response) => {
       const query = response.data.query;
-      setTextSearchQuery(query);
+      set({ textSearchQuery: query });
       console.log("Generated search query:", query);
     }).catch((error) => {
       console.error("Error generating search query:", error);
-      setCompletionError(error.response.data.error || "Failed to generate search query");
+      set({ completionError: error.response.data.error || "Failed to generate search query" });
     }).finally(() => {
-      setCompletionLoading(false);
+      set({ completionLoading: false });
     });
   }
 
@@ -166,17 +161,21 @@ function DiscoverLeadsMap() {
     return requests > 0 ? requests : 0;
   }
 
+  const getSearchHistory = () => {
+    API.get('/search/history')
+  }
+
   return (<div className='container-fluid'>
     <div className='col-12'>
       {/* Map Controls */}
-      <button className='btn btn-outline-secondary me-2 mb-3' onClick={() => setSearchToggle(!searchToggle)}>
+      <button className='btn btn-outline-secondary me-2 mb-3' onClick={() => set({ searchToggle: !searchToggle })}>
         Switch to {searchToggle ? 'Text Search' : 'Nearby Search'}
       </button>
 
       <nav className='d-flex flex-nowrap mb-3'>
         {searchToggle 
         ? <select name="business_type" id="business_type" value={selectedCategory} onChange={(e) => {
-          setSelectedCategory(e.target.value);
+          set({ selectedCategory: e.target.value });
           localStorage.setItem('selectedCategory', e.target.value);
         }} className='form-select me-2'>
           {PLACE_CATEGORIES.map((cat) => (
@@ -184,7 +183,7 @@ function DiscoverLeadsMap() {
           ))}
         </select> 
         : <div className='input-group me-2'>
-          <input type='text' value={textSearchQuery} onChange={(event) => setTextSearchQuery(event.target.value)} className='form-control' placeholder='Search...' />
+          <input type='text' value={textSearchQuery} onChange={(event) => set({ textSearchQuery: event.target.value })} className='form-control' placeholder='Search...' />
           <button className='btn btn-outline-secondary' onClick={() => handleTextSearchCompletion()} disabled={completionLoading}>
             {completionLoading ? <div className='spinner-border spinner-border-sm' role='status' 
             /> : <FontAwesomeIcon icon={faWandMagicSparkles}/>}
@@ -196,15 +195,15 @@ function DiscoverLeadsMap() {
           <input type="number" className='form-control' max={20} placeholder='Max results' value={maxResultCount} onChange={(e) => {
             const value = parseInt(e.target.value);
             if (!isNaN(value) && value > 0) {
-              setMaxResultCount(value);
+              set({ maxResultCount: value });
             }
           }}/>
         </div>
       </nav>
-      {completionError && <div className='text-danger m-0 my-3 d-flex align-items-center'>{completionError} <button className='btn p-0 m-0 ms-2' onClick={() => setCompletionError(null)}>x</button></div>}        
+      {completionError && <div className='text-danger m-0 my-3 d-flex align-items-center'>{completionError} <button className='btn p-0 m-0 ms-2' onClick={() => set({ completionError: null })}>x</button></div>}        
 
       {/* Map Container */}
-      <MapContainer updateSelectedPlace={setSelectedPlace} places={places} selectedBusiness={selectedBusiness}/>
+      <MapContainer updateSelectedPlace={(val) => set({ selectedPlace: val })} places={places} selectedBusiness={selectedBusiness}/>
       <div className="d-flex align-items-center justify-content-between mt-3 gap-2">
         <button 
           className='btn btn-primary' 
@@ -231,17 +230,17 @@ function DiscoverLeadsMap() {
     </div>
 
     <div className='d-flex col-12'>
-      <div className='container d-flex flex-column align-items-center mt-4' style={{overflowY: "auto", height: '400px'}}>
+      <div className='container d-flex flex-column align-items-center mt-4' style={{overflowY: "auto"}}>
         {places && places.map((place, index) => (
           <div className='d-flex flex-column w-100 p-2 border-bottom' key={place.id}>
             <div className='d-flex justify-content-between w-100'>
               <span><span className='me-2'>{index + 1}</span>{place.displayName.text}</span>
               <button className='btn m-0 p-0 px-2' onClick={() => {
                 if (selectedBusiness === place.id) {
-                  setSelectedBusiness(null);
+                  set({ selectedBusiness: null });
                   return;
                 }
-                setSelectedBusiness(place.id)
+                set({ selectedBusiness: place.id });
               }}>
                 <FontAwesomeIcon icon={faGlobe} className={`${place.websiteUri ? 'text-success' : 'text-danger'}`}/>
                 <FontAwesomeIcon icon={selectedBusiness === place.id ? faArrowUp : faArrowDown} className={'ms-2 text-secondary'}/>
@@ -286,6 +285,82 @@ function DiscoverLeadsMap() {
             )}
           </div>
         ))}
+      </div>
+    </div>
+
+    <div className='d-flex col-12'>
+      <div className='container d-flex flex-column mt-4' style={{ overflowY: "auto", maxHeight: 320 }}>
+        <h5 className='mb-3'>Search History</h5>
+        {discovery.historyLoading && <div className='text-muted'>Loading…</div>}
+        {discovery.historyError && (
+          <div className='text-danger d-flex align-items-center'>
+            {discovery.historyError}
+            <button className='btn btn-link p-0 ms-2' onClick={loadHistory}>Retry</button>
+          </div>
+        )}
+        {!discovery.historyLoading && !discovery.historyError && discovery.history.length === 0 && (
+          <div className='text-muted'>No history yet. Run a search to populate this.</div>
+        )}
+
+        <ul className='list-group'>
+          { discovery.history.map((h) => {
+            const when = new Date(h.createdAt).toLocaleString();
+            const summary = h.type === 'NEARBY'
+              ? `${h.type} • ${h.category} • r=${h.radiusMeters}m`
+              : `${h.type} • “${h.textQuery}” • r=${h.radiusMeters}m`;
+            return (
+              <li key={h.id} className='list-group-item d-flex justify-content-between align-items-center'>
+                <div className='me-2'>
+                  <div className='fw-semibold'>{summary}</div>
+                  <div className='small text-muted'>
+                    {when} • {h.placesCount} places • @({h.centerLat.toFixed(4)}, {h.centerLng.toFixed(4)})
+                  </div>
+                </div>
+                <div className='d-flex gap-2'>
+                  <button
+                    className='btn btn-outline-secondary btn-sm'
+                    title='Load saved results (no API cost)'
+                    onClick={() => {
+                      // Rehydrate UI from saved JSON
+                      set({
+                        places: h.results || [],
+                        selectedBusiness: null,
+                        selectedPlace: { lat: h.centerLat, lng: h.centerLng, zoom: 14 }, // default zoom
+                        selectedCategory: h.category || discovery.selectedCategory,
+                        textSearchQuery: h.textQuery || discovery.textSearchQuery,
+                      });
+                    }}
+                  >
+                    Load
+                  </button>
+                  <button
+                    className='btn btn-primary btn-sm'
+                    title='Re-run the same search (uses tokens)'
+                    onClick={() => {
+                      set({
+                        selectedPlace: { lat: h.centerLat, lng: h.centerLng, zoom: 14 },
+                        selectedBusiness: null,
+                        selectedCategory: h.category || discovery.selectedCategory,
+                        textSearchQuery: h.textQuery || '',
+                        maxResultCount: h.maxResultCount || discovery.maxResultCount,
+                      });
+                      if (h.type === 'NEARBY') {
+                        set({ searchToggle: true });
+                        // defer to next tick so state is applied before handler runs
+                        setTimeout(() => handleNearbySearch(), 0);
+                      } else {
+                        set({ searchToggle: false });
+                        setTimeout(() => handleTextSearch(), 0);
+                      }
+                    }}
+                  >
+                    Re-run
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </div>
   </div>)

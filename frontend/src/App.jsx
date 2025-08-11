@@ -25,7 +25,9 @@ export default function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<ProtectedRoute>
               <LeadProvider>
-                <DashboardPage />
+                <IntakeFormProvider>
+                  <DashboardPage />
+                </IntakeFormProvider>
               </LeadProvider>
             </ProtectedRoute>} />
             <Route path='/pricing' element={<PricingPage />} />

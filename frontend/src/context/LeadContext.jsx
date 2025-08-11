@@ -35,11 +35,8 @@ export const LeadProvider = ({ children }) => {
     }).finally(() => {
       setActionLoading(false);
       setShowAddForm(false);
-      setNewLead({
-        name: '',
-        location: '',
-        website: '',
-      });
+      if (typeof setShowAddForm === 'function') setShowAddForm(false);  // <-- guard
+      if (typeof setNewLead === 'function') setNewLead({ name: '', location: '', website: '' });
     });
   }
 

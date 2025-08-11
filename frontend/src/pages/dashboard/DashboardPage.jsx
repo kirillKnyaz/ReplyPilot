@@ -1,16 +1,38 @@
-import { useEffect } from "react";
+import { useEffect, useState, useContext } from "react";
 import useAuth from "../../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import LeadSidebar from "../../components/leads/LeadSidebar";
 import LeadDetails from "../../components/leads/LeadDetails";
-import { useState } from "react";
 import DiscoverLeadsMap from "../../components/leads/DiscoverLeadsMap";
+import OnboardingPage from "../onboarding/OnboardingPage";
 
 function DashboardPage() {
   const { loading, authenticated, user } = useAuth();
   const navigate = useNavigate();
 
   const [toggle, setToggle] = useState(0);
+  // discovery state that should persist
+  const [discovery, setDiscovery] = useState({
+    searchToggle: true,
+    selectedCategory: localStorage.getItem('selectedCategory') || 'restaurant',
+    textSearchQuery: '',
+    maxResultCount: 10,
+
+    selectedPlace: null,
+    searchButtonVisible: true,
+    nearbySearchLoading: false,
+    nearbySearchError: null,
+
+    places: [],
+    selectedBusiness: null,
+
+    completionLoading: false,
+    completionError: null,
+    // history
+    history: [],
+    historyLoading: false,
+    historyError: null,
+  });
 
   useEffect(() => {
     if (loading) return; // Wait until loading is complete
@@ -26,7 +48,7 @@ function DashboardPage() {
   }, [user, loading, authenticated]);
 
   return (
-    <div className="d-flex h-100 w-100 overflow-hidden position-relative">
+    <div className="d-flex vh-100 w-100 overflow-hidden position-relative">
       <main className="flex-grow-1 d-flex flex-column" style={{ minWidth: 0, overflow: 'auto' }}>
         <nav className="w-100 nav-tabs">
           <ul className="nav nav-tabs">
@@ -43,11 +65,13 @@ function DashboardPage() {
         </nav>
         <div className="p-3">
           {toggle === 0 && <LeadDetails />}
-          {toggle === 1 && <DiscoverLeadsMap />}
-          {toggle === 2 && <div>Settings Content</div>}
+          {toggle === 1 && <DiscoverLeadsMap discovery={discovery} setDiscovery={setDiscovery} />}
+          {toggle === 2 && <OnboardingPage />}
         </div>
       </main>
-      <LeadSidebar />
+      <div className="h-100">
+        <LeadSidebar />
+      </div>
     </div>
   );
 }

@@ -128,6 +128,7 @@ app.use('/api/onboarding', authenticate, require('./routes/onboarding'));
 app.use('/api/billing', authenticate, require('./routes/billing'));
 app.use('/api/leads', authenticate, require('./routes/leads'));
 app.use('/api/search', authenticate, require('./routes/search'));
+app.use('/api/lists', authenticate, require('./routes/lists'));
 
 app.listen(process.env.PORT, () =>
   console.log(`Server running on http://localhost:${process.env.PORT}`)
