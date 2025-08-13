@@ -12,7 +12,7 @@ export default function ProtectedRoute({ children }) {
     }
 
     if (!loading && authenticated && user) {
-      if (user.subscription.ended_at && Date.now() > new Date(user.subscription?.ended_at * 1000)) {
+      if (user.subscription?.ended_at && Date.now() > new Date(user.subscription?.ended_at * 1000)) {
         navigate('/pricing', {
           state: {
             message: 'Your subscription has expired. Please renew to continue using the service.'

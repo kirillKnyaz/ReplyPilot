@@ -6,7 +6,7 @@ import API from '../../api';
 import ListManagerDropdown from '../utils/ListManagerDropdown';
 
 function LeadDetails() {
-  const { leads, selectedLeadId } = useLeads();
+  const { leads, selectedLeadId, lists } = useLeads();
   const [infoToggle, setInfoToggle] = useState(false);
   const [actionLoading, setActionLoading] = useState({
     identity: false,
@@ -142,10 +142,16 @@ function LeadDetails() {
         <p className='text-muted m-0'>{selectedLead ? selectedLead.location : "Select a lead to view details"}</p>
       </div>
 
-      {selectedLead && <ListManagerDropdown leadId={selectedLead.id} />}
+      {selectedLead && <ListManagerDropdown lead={selectedLead} lists={lists} />}
     </div>
 
     {selectedLead ? (<>
+      <div className='mb-1 ps-3 d-flex flex-column justify-content-center py-2 border-bottom'>
+        <span className='fs-5'>Explore Manually</span> 
+        <a href={selectedLead?.website || null} target='_blank' rel='noopener noreferrer'>{selectedLead?.website || "No Website Available"}</a>
+        <a href={selectedLead?.mapsUrl || null} target='_blank' rel='noopener noreferrer'>{selectedLead?.mapsUrl || "No Maps URL Available"}</a>
+      </div>
+
       <div className='fs-5 mb-1 ps-3 d-flex align-items-center pt-2'>
         Auto Explore <FontAwesomeIcon ref={infoToggleRef} icon={faInfoCircle} className='ms-2' onClick={() => setInfoToggle(!infoToggle)} />
         {infoToggle 

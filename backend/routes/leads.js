@@ -1,5 +1,8 @@
 const router = require('express').Router();
-const prisma = require('../lib/prisma.js');
+const { PrismaClient } = require('@prisma/client')
+const prisma = new PrismaClient();
+
+// const prisma = require('../lib/prisma.js');
 const { generateTextSearchQueryFromICP } = require('../service/gpt');
 const { enrichIdentity } = require('../service/enrichLead/identity');
 const { enrichContact } = require('../service/enrichLead/contact');
@@ -82,9 +85,19 @@ router.get('/', async (req, res) => {
       where: { userId },
       include: {
         sources: true,
+        lists: { select: {
+          id: true,
+          list: { select: { id: true, name: true} }
+        } }
       }
     });
-    res.json(leads);
+
+    const shaped = leads.map(l => ({
+      ...l,
+      lists: l.lists.map(x => x.list) // [{id, name}]
+    }));
+
+    res.json(shaped);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch leads', error: err.message });
   }
@@ -117,40 +130,49 @@ router.post('/', async (req, res) => {
         location,
         mapsUri: additionalData.googleMapsUri ?? null,
         placesId: additionalData.placesId ?? null,
+      },
+      include: {
+        lists: { select: 
+          { list: { select: { id: true, name: true } } }
+        }
       }
     });
-    res.status(201).json(lead);
+
+    const shapedLead = {
+      ...lead,
+      lists: lead.lists.map(x => x.list) // [{id, name}]
+    };
+
+    res.status(201).json(shapedLead);
   } catch (err) {
     res.status(500).json({ message: 'Failed to create lead', error: err.message });
   }
 });
 
+// routes/leads.js (delete route)
 router.delete('/:id', async (req, res) => {
   const userId = req.user.userId;
-
   const leadId = req.params.id;
 
   try {
-    const lead = await prisma.lead.findUnique({
+    // Auth check: ensure the lead belongs to the user
+    const lead = await prisma.lead.findFirst({
       where: { id: leadId, userId },
     });
+    if (!lead) return res.status(404).json({ message: 'Lead not found' });
 
-    if (!lead) {
-      return res.status(404).json({ message: 'Lead not found' });
-    }
-
-    prisma.$transaction([
+    await prisma.$transaction([
       prisma.leadSource.deleteMany({ where: { leadId } }),
-      prisma.lead.delete({ where: { id: leadId, userId } }),
-    ]).then(() => {
-      res.status(204).send();
-    }).catch((err) => {
-      res.status(500).json({ message: 'Failed to delete lead', error: err.message });
-    });
+      prisma.leadList.deleteMany({ where: { leadId } }),            
+      prisma.leadEnrichmentLog.deleteMany({ where: { leadId } }),
+      prisma.lead.delete({ where: { id: leadId } }),
+    ]);
+
+    return res.status(204).send();
   } catch (err) {
-    res.status(500).json({ message: 'Failed to delete lead', error: err.message });
+    return res.status(500).json({ message: 'Failed to delete lead', error: err.message });
   }
-})
+});
 
 router.get('/generateQuery', async (req, res) => {
   const userId = req.user.userId;

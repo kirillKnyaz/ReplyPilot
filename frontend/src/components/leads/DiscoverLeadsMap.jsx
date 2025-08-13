@@ -1,7 +1,7 @@
 import { useState, useEffect, use } from 'react'
 import MapContainer from './MapContainer';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowDown, faArrowUp, faCrown, faEllipsis, faExternalLink, faExternalLinkAlt, faFloppyDisk, faGlobe, faMagnifyingGlass, faRepeat, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
+import { faArrowDown, faArrowUp, faCheck, faCrown, faEllipsis, faExternalLink, faExternalLinkAlt, faFloppyDisk, faGlobe, faMagnifyingGlass, faRepeat, faWandMagicSparkles } from '@fortawesome/free-solid-svg-icons';
 import API from '../../api';
 import useAuth from '../../hooks/useAuth';
 import { Link } from 'react-router-dom';
@@ -32,7 +32,7 @@ const PLACE_CATEGORIES = [
 
 function DiscoverLeadsMap({ discovery, setDiscovery }) {
   const { user, updateUserSubscription } = useAuth();
-  const { addLead, selectLead, actionLoading, actionError } = useLeads();
+  const { addLead, selectLead, actionLoading, actionError, leads } = useLeads();
 
   const {
     searchToggle, selectedCategory, textSearchQuery, maxResultCount,
@@ -134,7 +134,6 @@ function DiscoverLeadsMap({ discovery, setDiscovery }) {
     };
 
     console.log("Saving lead data:", leadData);
-
     addLead(leadData);
   }
 
@@ -274,13 +273,17 @@ function DiscoverLeadsMap({ discovery, setDiscovery }) {
                   </a>
                 </div>
 
-                <button className='btn btn-primary' onClick={() => handleSaveLead()} disabled={actionLoading}>
-                  Save 
-                  {actionLoading 
-                    ? <div className='spinner-border spinner-border-sm' role='status' /> 
-                    : <FontAwesomeIcon icon={faFloppyDisk} className='ms-2'/>
-                  }
-                </button>
+                {leads.find((lead) => lead.placesId === place.id) 
+                  ? <button className='btn btn-success' disabled>
+                    Saved <FontAwesomeIcon icon={faCheck} className='ms-1'/>
+                  </button>
+                  : <button className='btn btn-primary' onClick={() => handleSaveLead()} disabled={actionLoading }>
+                    Save {actionLoading 
+                      ? <div className='spinner-border spinner-border-sm ms-1' role='status' /> 
+                      : <FontAwesomeIcon icon={leads.find((lead) => lead.placesId === place.id) ? faCheck : faFloppyDisk} className='ms-1'/>
+                    }
+                  </button>
+                }
               </div>
             )}
           </div>
@@ -332,29 +335,6 @@ function DiscoverLeadsMap({ discovery, setDiscovery }) {
                     }}
                   >
                     Load
-                  </button>
-                  <button
-                    className='btn btn-primary btn-sm'
-                    title='Re-run the same search (uses tokens)'
-                    onClick={() => {
-                      set({
-                        selectedPlace: { lat: h.centerLat, lng: h.centerLng, zoom: 14 },
-                        selectedBusiness: null,
-                        selectedCategory: h.category || discovery.selectedCategory,
-                        textSearchQuery: h.textQuery || '',
-                        maxResultCount: h.maxResultCount || discovery.maxResultCount,
-                      });
-                      if (h.type === 'NEARBY') {
-                        set({ searchToggle: true });
-                        // defer to next tick so state is applied before handler runs
-                        setTimeout(() => handleNearbySearch(), 0);
-                      } else {
-                        set({ searchToggle: false });
-                        setTimeout(() => handleTextSearch(), 0);
-                      }
-                    }}
-                  >
-                    Re-run
                   </button>
                 </div>
               </li>

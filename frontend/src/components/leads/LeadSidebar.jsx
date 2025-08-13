@@ -3,12 +3,17 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useLeads } from '../../context/LeadContext';
 import { faChevronLeft, faChevronRight, faMinus, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import React, {useState, useEffect, useRef, useMemo} from 'react';
-import { getLists, createList, getList } from '../../api/listsClient';
 import gsap from 'gsap';
 import '../../styles/components/LeadsStyles.css'
 
 export default function LeadSidebar() {
-  const { leads, selectLead, selectedLeadId, addLead, dataLoading, actionLoading, actionError, deleteLead } = useLeads();
+  const { leads, selectLead, selectedLeadId, 
+    addLead, deleteLead,
+    lists, selectList, selectedListId, 
+    addList, deleteList,
+    dataLoading, actionLoading, actionError,
+    countLeadsByList
+  } = useLeads();
 
   const [isOpen, setIsOpen] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -24,84 +29,6 @@ export default function LeadSidebar() {
   const sidebarRef = useRef(null);
   const selectedLeadRef = useRef(null);
   const prevSelectedId = useRef(null);
-
-  // inside component
-  const [lists, setLists] = useState([]);
-  const [selectedListId, setSelectedListId] = useState('all');
-  const [listLeadIds, setListLeadIds] = useState({}); // {listId: Set(leadIds)}
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await getLists();
-        setLists(data); // [{id,name,count,...}]
-      } catch (e) {
-        console.error('load lists failed', e);
-      }
-    })();
-  }, []);
-
-  // listen for membership changes coming from the dropdowns
-  useEffect(() => {
-    function onAdded(e) {
-      const { listId, leadId } = e.detail;
-      setLists(prev => prev.map(l => l.id === listId ? { ...l, count: l.count + 1 } : l));
-      setListLeadIds(prev => {
-        const next = { ...prev };
-        next[listId] = new Set(next[listId] || []);
-        next[listId].add(leadId);
-        return next;
-      });
-    }
-    function onRemoved(e) {
-      const { listId, leadId } = e.detail;
-      setLists(prev => prev.map(l => l.id === listId ? { ...l, count: Math.max(0, l.count - 1) } : l));
-      setListLeadIds(prev => {
-        const next = { ...prev };
-        if (next[listId]) {
-          next[listId] = new Set(next[listId]);
-          next[listId].delete(leadId);
-        }
-        return next;
-      });
-    }
-    window.addEventListener('lists:added', onAdded);
-    window.addEventListener('lists:removed', onRemoved);
-    return () => {
-      window.removeEventListener('lists:added', onAdded);
-      window.removeEventListener('lists:removed', onRemoved);
-    };
-  }, []);
-  
-  const filteredLeads = useMemo(() => {
-    if (selectedListId === 'all') return leads;
-    const ids = listLeadIds[selectedListId];
-    if (!ids) return []; // not loaded yet
-    return leads.filter(l => ids.has(l.id));
-  }, [leads, selectedListId, listLeadIds]);
-
-  async function handlePickList(listId) {
-    setSelectedListId(listId);
-    if (listId === 'all') return;
-    if (!listLeadIds[listId]) {
-      try {
-        const detail = await getList(listId); // {leads:[{leadId,...}]}
-        setListLeadIds(prev => ({ ...prev, [listId]: new Set(detail.leads.map(x => x.leadId)) }));
-      } catch (e) {
-        console.error('load list detail failed', e);
-      }
-    }
-  }
-
-  async function handleCreateList() {
-    if (!newListName) return;
-    try {
-      const created = await createList(newListName);
-      setLists(prev => [{ ...created, count: 0 }, ...prev]);
-    } catch (e) {
-      alert('Could not create list');
-    }
-  }
 
   useEffect(() => {
     if (!sidebarRef.current) return;
@@ -155,12 +82,15 @@ export default function LeadSidebar() {
         <select
           className="form-select form-select-sm"
           value={selectedListId}
-          onChange={(e) => handlePickList(e.target.value)}
+          onChange={(e) => {
+            console.log('Selected List ID:', e.target.value);
+            selectList(e.target.value)
+          }}
         >
-          <option value="all">All leads</option>
+          <option value={null}>All leads</option>
           {lists.map(l => (
             <option key={l.id} value={l.id}>
-              {l.name} ({l.count})
+              {l.name} ({countLeadsByList(l.id)})
             </option>
           ))}
         </select>
@@ -249,7 +179,7 @@ export default function LeadSidebar() {
 
       {dataLoading && <div className="text-center p-3"><div className="spinner-border" role="status"></div></div>}
 
-      {filteredLeads.map((lead, index) => (
+      {leads.map((lead, index) => (
         <div
           className={`d-flex justify-content-between p-2 sidebar-lead border-bottom ${lead.id === selectedLeadId ? 'bg-white' : ''}`}
           key={index}
@@ -259,11 +189,16 @@ export default function LeadSidebar() {
           }}
         >
           <div ref={lead.id === selectedLeadId ? selectedLeadRef : null}>
+            <div>
+              {lead.lists.length > 0 && lead.lists.map((list) => (
+                <span key={list.id} className="badge bg-secondary me-1 mb-1">{list.name}</span>
+              ))}
+            </div>
             <h6 className='m-0'>{lead.name}</h6>
             <small className='text-muted'>{lead.location}</small>
           </div>
 
-          <button className="btn btn-outline-danger btn-sm" style={{height: "min-content"}} onClick={(e) => {
+          <button className="btn btn-outline-danger btn-sm align-self-center" style={{height: "min-content"}} onClick={(e) => {
             e.stopPropagation();
             if (window.confirm(`Are you sure you want to delete the lead "${lead.name}"?`)) {
               deleteLead(lead.id);
