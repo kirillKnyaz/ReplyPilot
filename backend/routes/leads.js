@@ -85,6 +85,36 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
+router.patch('/:id/priority', async (req, res) => {
+  const userId = req.user.userId;
+  const leadId = req.params.id;
+  const { priority } = req.body;
+
+  try {
+    const lead = await prisma.lead.update({
+      where: { id: leadId, userId },
+      data: { priority },
+      include: {
+        sources: true,
+        lists: { select: {
+          id: true,
+          list: { select: { id: true, name: true} }
+        } }
+      }
+    });
+
+    const shaped = {
+      ...lead,
+      lists: lead.lists.map(x => x.list) // [{id, name}]
+    };
+
+    return res.json(shaped);
+  } catch (err) {
+    console.log('Error updating lead priority:', err);
+    res.status(500).json({ message: 'Failed to update lead priority', error: err.message });
+  }
+});
+
 router.get('/', async (req, res) => {
   const userId = req.user.userId;
 

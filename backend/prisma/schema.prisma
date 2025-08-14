@@ -59,7 +59,8 @@ model Lead {
   mapsUri       String?
   placesId      String?  @unique
   location      String
-  
+  priority      Priority @default(MEDIUM)
+
   name          String
   type          String?
   description   String?
@@ -204,6 +205,13 @@ model SearchResult {
 
   @@index([userId, createdAt])
   @@index([type, createdAt])
+}
+
+enum Priority {
+  CERTAIN
+  HIGH
+  MEDIUM
+  LOW
 }
 
 enum MessageStatus {

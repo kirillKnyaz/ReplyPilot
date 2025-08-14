@@ -104,7 +104,7 @@ export const LeadProvider = ({ children }) => {
   };
 
   return (
-    <LeadContext.Provider value={{ leads: filteredLeads, addLead, selectedLeadId, selectLead, dataLoading, actionLoading, actionError, deleteLead, lists, addList, deleteList, selectedListId, selectList, countLeadsByList }}>
+    <LeadContext.Provider value={{ leads: filteredLeads, setLeads, addLead, selectedLeadId, selectLead, dataLoading, actionLoading, actionError, deleteLead, lists, addList, deleteList, selectedListId, selectList, countLeadsByList }}>
       {children}
     </LeadContext.Provider>
   );

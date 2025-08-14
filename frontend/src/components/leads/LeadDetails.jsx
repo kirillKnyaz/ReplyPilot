@@ -7,7 +7,7 @@ import API from '../../api';
 import ListManagerDropdown from '../utils/ListManagerDropdown';
 
 function LeadDetails() {
-  const { leads, selectedLeadId, lists } = useLeads();
+  const { leads, setLeads, selectedLeadId, lists } = useLeads();
   const [actionLoading, setActionLoading] = useState({
     identity: false,
     contact: false,
@@ -126,14 +126,49 @@ function LeadDetails() {
     }
   }, [selectedLeadId, selectedLead]);
 
+  const handlePriorityChange = (priority) => {
+    if (!selectedLeadId) return;
+
+    API.patch(`/leads/${selectedLeadId}/priority`, { priority })
+    .then(response => {
+      setSelectedLead(response.data);
+      setLeads(prev => prev.map(lead => lead.id === selectedLeadId ? response.data : lead));
+    })
+    .catch(error => {
+      console.error('Error updating lead priority:', error);
+    });
+  };
+
   return (<div className='card'>
-    <div className='card-header d-flex justify-content-between'>
+    <div className='card-header d-flex justify-content-start'>
+      <div className='d-flex flex-column justify-content-center gap-2 pe-3 me-3 border-end'>
+        <button 
+          className={`btn btn-sm btn-outline-success ${selectedLead?.priority === 'HIGH' ? 'active' : ''}`}
+          onClick={() => handlePriorityChange('HIGH')}
+          disabled={!selectedLeadId}
+        >
+          High
+        </button>
+        <button 
+          className={`btn btn-sm btn-outline-warning ${selectedLead?.priority === 'MEDIUM' ? 'active' : ''}`} 
+          onClick={() => handlePriorityChange('MEDIUM')}
+          disabled={!selectedLeadId}
+        >
+          Med
+        </button>
+        <button 
+          className={`btn btn-sm btn-outline-secondary ${selectedLead?.priority === 'LOW' ? 'active' : ''}`} 
+          onClick={() => handlePriorityChange('LOW')}
+          disabled={!selectedLeadId}
+        >
+          Low
+        </button>
+      </div>
       <div className='d-flex flex-column'>
         <h1>{selectedLead ? selectedLead.name : "Lead Details"}</h1>
-        <p className='text-muted m-0'>{selectedLead ? selectedLead.location : "Select a lead to view details"}</p>
+        <p className='text-muted m-0 mb-2'>{selectedLead ? selectedLead.location : "Select a lead to view details"}</p>
+        {selectedLead && <ListManagerDropdown lead={selectedLead} lists={lists} />}
       </div>
-
-      {selectedLead && <ListManagerDropdown lead={selectedLead} lists={lists} />}
     </div>
 
     {selectedLead ? (<>
@@ -233,89 +268,11 @@ function LeadDetails() {
         </div>
       )}
 
-      {editOpen && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" style={{ background: 'rgba(0,0,0,0.35)', zIndex: 1050 }}>
-          <div className="card shadow" style={{ width: 'min(920px, 92vw)' }}>
-            <div className="card-header d-flex justify-content-between align-items-center">
-              <strong>Edit Lead</strong>
-              <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditOpen(false)}>Close</button>
-            </div>
-            <div className="card-body">
-              <div className="row g-3">
-                <div className="col-12 col-md-6">
-                  <label className="form-label">Name</label>
-                  <input name="name" value={form.name} onChange={onChange} className="form-control" />
-                </div>
-                <div className="col-12 col-md-6">
-                  <label className="form-label">Location</label>
-                  <input name="location" value={form.location} onChange={onChange} className="form-control" />
-                </div>
-
-                <div className="col-12 col-md-4">
-                  <label className="form-label">Type</label>
-                  <input name="type" value={form.type} onChange={onChange} className="form-control" />
-                </div>
-                <div className="col-12 col-md-8">
-                  <label className="form-label">Keywords (comma separated)</label>
-                  <input name="keywords" value={form.keywords} onChange={onChange} className="form-control" placeholder="e.g. plumber, emergency, 24/7" />
-                </div>
-
-                <div className="col-12">
-                  <label className="form-label">Description</label>
-                  <textarea name="description" value={form.description} onChange={onChange} className="form-control" rows={3} />
-                </div>
-
-                <div className="col-12 col-md-4">
-                  <label className="form-label">Website</label>
-                  <input name="website" value={form.website} onChange={onChange} className="form-control" />
-                </div>
-                <div className="col-12 col-md-4">
-                  <label className="form-label">Email</label>
-                  <input name="email" value={form.email} onChange={onChange} className="form-control" />
-                </div>
-                <div className="col-12 col-md-4">
-                  <label className="form-label">Phone</label>
-                  <input name="phone" value={form.phone} onChange={onChange} className="form-control" />
-                </div>
-
-                <div className="col-12 col-md-4">
-                  <label className="form-label">Instagram</label>
-                  <input name="instagram" value={form.instagram} onChange={onChange} className="form-control" />
-                </div>
-                <div className="col-12 col-md-4">
-                  <label className="form-label">Facebook</label>
-                  <input name="facebook" value={form.facebook} onChange={onChange} className="form-control" />
-                </div>
-                <div className="col-12 col-md-4">
-                  <label className="form-label">TikTok</label>
-                  <input name="tiktok" value={form.tiktok} onChange={onChange} className="form-control" />
-                </div>
-              </div>
-
-              {saveError && <div className="text-danger mt-3">{saveError}</div>}
-
-              <div className="d-flex justify-content-end mt-4">
-                <button className="btn btn-outline-secondary me-2" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</button>
-                <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>
-                  {saving ? <span className="spinner-border spinner-border-sm me-2" /> : null}
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className='card-body p-0'>
         <div className="row m-0">
           <div className="col-12 col-md-6 border p-0">
             <div className='d-flex align-items-center border-bottom p-2 justify-content-between'>
-              <h5 className='m-0'>
-                Identity
-                <span className={`fs-6 fw-light ms-1 text-${selectedLead.identityComplete ? 'info' : 'danger'}`}>
-                  ({selectedLead.identityComplete ? 'Complete' : 'Incomplete'})
-                </span>
-              </h5>
+              <h5 className='m-0'>Identity</h5>
               <button 
                 className={`btn btn-outline-${selectedLead.identityComplete ? 'success' : 'primary'}`}
                 onClick={() => handleIdentityEnrichment()}
@@ -353,12 +310,7 @@ function LeadDetails() {
 
           <div className="col-12 col-md-6 border p-0">
             <div className='d-flex align-items-center justify-content-between border-bottom p-2'>
-              <h5 className="m-0">
-                Contact
-                <span className={`fs-6 fw-light ms-1 text-${selectedLead.contactComplete ? 'info' : 'danger'}`}>
-                  ({selectedLead.contactComplete ? 'Complete' : 'Incomplete'})
-                </span>
-              </h5>
+              <h5 className="m-0">Contact</h5>
               <button 
                 className={`justify-self-end btn btn-outline-${selectedLead.contactComplete ? 'success' : 'primary'}`}
                 onClick={() => handleContactEnrichment()}
