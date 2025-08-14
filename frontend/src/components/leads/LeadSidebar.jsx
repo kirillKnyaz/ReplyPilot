@@ -20,7 +20,7 @@ export default function LeadSidebar() {
   const [newLead, setNewLead] = useState({
     name: '',
     location: '',
-    website: '',
+    website: ''
   });
 
   const [showListInput, setShowListInput] = useState(false);
@@ -179,7 +179,7 @@ export default function LeadSidebar() {
 
       {dataLoading && <div className="text-center p-3"><div className="spinner-border" role="status"></div></div>}
 
-      {leads.map((lead, index) => (
+      {leads.sort((a, b) => a.name.localeCompare(b.name)).map((lead, index) => (
         <div
           className={`d-flex justify-content-between p-2 sidebar-lead border-bottom ${lead.id === selectedLeadId ? 'bg-white' : ''}`}
           key={index}

@@ -25,7 +25,8 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "string-similarity": "^4.0.4",
-    "stripe": "^18.3.0"
+    "stripe": "^18.3.0",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@prisma/client": "^6.13.0",
