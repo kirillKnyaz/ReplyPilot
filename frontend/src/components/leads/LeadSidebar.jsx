@@ -103,7 +103,7 @@ export default function LeadSidebar() {
         <div className='p-2 border-bottom'>
           <form className="p-3 card bg-white" onSubmit={(e) => {
             e.preventDefault();
-            handleCreateList();
+            addList(newListName);
           }}>
             <label htmlFor="listName">List Name</label>
             <input

@@ -14,7 +14,7 @@ const leadManual = z.object({
   name: z.string().optional(),
   type: z.string().optional(),
   description: z.string().optional(),
-  keywords: z.string().optional(),
+  keywords: z.array(z.string()).optional(),
   website: z.string().optional(),
   email: z.string().optional(),
   phone: z.string().optional(),
@@ -27,9 +27,7 @@ const leadManual = z.object({
 router.get('/:id/enrichmentLog/:goal', async (req, res) => {
   const leadId = req.params.id;
   const goal = req.params.goal;
-
-  console.log('Fetching enrichment log for lead:', leadId, 'goal:', goal);
-
+  
   try {
     const log = await prisma.leadEnrichmentLog.findFirst({
       where: { leadId, goal },
@@ -48,25 +46,22 @@ router.patch('/:id', async (req, res) => {
   const leadId = req.params.id;
   const data = req.body;
 
-  // Validate and sanitize input
-  if (!leadManual.safeParse(data).success) {
-    return res.status(400).json({ message: 'Invalid lead data', errors: leadManual.safeParse(data).error.issues });
-  }
-
-  // Normalize keywords (string -> array)
-  if (data.keywords && typeof data.keywords === 'string') {
-    data.keywords = data.keywords
+  let keywords = data.keywords;
+  if (keywords && typeof keywords === 'string') {
+    keywords = keywords
       .split(',')
       .map(s => s.trim())
       .filter(Boolean);
+  } else if (!keywords || keywords.length === 0) {
+    keywords = []; // Set to empty array if empty or undefined
   }
 
   const identityComplete = (
     (data.name !== null && data.name !== undefined && data.name !== '') 
     && (data.type !== null && data.type !== undefined && data.type !== '') 
     && (data.description !== null && data.description !== undefined && data.description !== '') 
-    && (data.keywords !== null && data.keywords !== undefined && data.keywords !== '')
-  )
+    && (data.keywords !== null && data.keywords !== undefined && data.keywords.length > 0)
+  );
 
   const contactComplete = (
     (data.website !== null && data.website !== undefined && data.website !== '') 
@@ -75,7 +70,7 @@ router.patch('/:id', async (req, res) => {
     && (data.instagram !== null && data.instagram !== undefined && data.instagram !== '') 
     && (data.facebook !== null && data.facebook !== undefined && data.facebook !== '') 
     && (data.tiktok !== null && data.tiktok !== undefined && data.tiktok !== '')
-  )
+  );
 
   try {
     const lead = await prisma.lead.update({
@@ -84,7 +79,7 @@ router.patch('/:id', async (req, res) => {
         name: data.name,
         type: data.type,
         description: data.description,
-        keywords: data.keywords,
+        keywords: keywords,
         website: data.website,
         email: data.email,
         phone: data.phone,
@@ -94,7 +89,7 @@ router.patch('/:id', async (req, res) => {
         identityComplete,
         contactComplete,
       }
-    })
+    });
 
     return res.json(lead);
   } catch (err) {

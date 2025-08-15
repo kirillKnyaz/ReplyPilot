@@ -32,7 +32,7 @@ function LeadDetails() {
     name: '', 
     type: '', 
     description: '', 
-    keywords: '',
+    keywords: [],
     website: '', 
     email: '', 
     phone: '',
@@ -48,7 +48,7 @@ function LeadDetails() {
       name: selectedLead.name || '',
       type: selectedLead.type || '',
       description: selectedLead.description || '',
-      keywords: Array.isArray(selectedLead.keywords) ? selectedLead.keywords.join(', ') : '',
+      keywords: Array.isArray(selectedLead.keywords) ? selectedLead.keywords.join(', ') : [],
       website: selectedLead.website || '',
       email: selectedLead.email || '',
       phone: selectedLead.phone || '',
@@ -75,10 +75,12 @@ function LeadDetails() {
         // send keywords as string; backend will normalize to array
         keywords: form.keywords
       };
+      console.log(payload)
       const { data } = await API.patch(`/leads/${selectedLeadId}`, payload);
       setSelectedLead(prev => ({ ...prev, ...data })); // optimistic: reflect updated lead
       setEditOpen(false);
     } catch (err) {
+      console.log(err);
       setSaveError(err?.response?.data?.message || 'Failed to save changes');
     } finally {
       setSaving(false);

@@ -100,7 +100,7 @@ export const LeadProvider = ({ children }) => {
   const filteredLeads = selectedListId ? leads.filter(lead => lead.lists?.some(list => list.id === selectedListId)) : leads;
 
   const countLeadsByList = (listId) => {
-    return leads.filter(lead => lead.lists.some(list => list.id === listId)).length;
+    return leads.filter(lead => lead.lists?.some(list => list.id === listId)).length;
   };
 
   return (
