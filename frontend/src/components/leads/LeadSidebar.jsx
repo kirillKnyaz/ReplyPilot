@@ -191,7 +191,7 @@ export default function LeadSidebar() {
           <div ref={lead.id === selectedLeadId ? selectedLeadRef : null}>
             <div>
               <span className={`badge bg-${lead.priority === 'HIGH' ? 'success' : lead.priority === 'MEDIUM' ? 'warning' : 'secondary'} me-1`}>{lead.priority}</span>
-              {lead.lists.length > 0 && lead.lists.map((list) => (
+              {lead.lists?.length > 0 && lead.lists?.map((list) => (
                 <span key={list.id} className="badge bg-secondary me-1 mb-1">{list.name}</span>
               ))}
             </div>

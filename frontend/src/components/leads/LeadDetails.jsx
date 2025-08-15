@@ -5,19 +5,23 @@ import { faArrowRight, faCheck, faEnvelope, faInfoCircle, faMagnifyingGlass, faP
 import { faFacebook, faInstagram, faTiktok } from '@fortawesome/free-brands-svg-icons';
 import API from '../../api';
 import ListManagerDropdown from '../utils/ListManagerDropdown';
+import EnrichmentLog from '../utils/EnrichmentLog';
 
 function LeadDetails() {
   const { leads, setLeads, selectedLeadId, lists } = useLeads();
   const [actionLoading, setActionLoading] = useState({
     identity: false,
     contact: false,
-    social: false,
+  });
+
+  const [actionEval, setActionEval] = useState({
+    identity: null,
+    contact: null,
   });
 
   const [actionError, setActionError] = useState({
     identity: null,
     contact: null,
-    social: null,
   });
 
   // --- Edit modal state ---
@@ -88,10 +92,14 @@ function LeadDetails() {
 
   const handleIdentityEnrichment = () => {
     setActionLoading(prev => ({ ...prev, identity: true }));
+    setActionError({ contact: null, identity: null });
+    setActionEval({ identity: null, contact: null });
     API.post(`/leads/${selectedLeadId}/enrich/identity`, {
       existingData: {}
     }).then(response => {
       console.log('Enrichment successful:', response.data);
+      setActionEval(prev => ({ ...prev, identity: response.data.eval }));
+      setLeads(prev => prev.map(lead => lead.id === selectedLeadId ? { ...lead, ...response.data.updatedLead } : lead));
       setSelectedLead(prev => ({ ...prev, ...response.data.updatedLead }));
     }).catch(error => {
       console.error('Error during enrichment:', error);
@@ -103,10 +111,14 @@ function LeadDetails() {
 
   const handleContactEnrichment = () => {
     setActionLoading(prev => ({ ...prev, contact: true }));
+    setActionError({ contact: null, identity: null });
+    setActionEval({ identity: null, contact: null });
     API.post(`/leads/${selectedLeadId}/enrich/contact`, {
       existingData: {}
     }).then(response => {
       console.log('Enrichment successful:', response.data);
+      setActionEval(prev => ({ ...prev, contact: response.data.eval }));
+      setLeads(prev => prev.map(lead => lead.id === selectedLeadId ? { ...lead, ...response.data.updatedLead } : lead));
       setSelectedLead(prev => ({ ...prev, ...response.data.updatedLead }));
     }).catch(error => {
       console.error('Error during enrichment:', error);
@@ -212,11 +224,11 @@ function LeadDetails() {
                   <label className="form-label">Location</label>
                   <input name="location" value={form.location} onChange={onChange} className="form-control" />
                 </div>
-
                 <div className="col-12 col-md-4">
                   <label className="form-label">Type</label>
                   <input name="type" value={form.type} onChange={onChange} className="form-control" />
                 </div>
+
                 <div className="col-12 col-md-8">
                   <label className="form-label">Keywords (comma separated)</label>
                   <input name="keywords" value={form.keywords} onChange={onChange} className="form-control" placeholder="e.g. plumber, emergency, 24/7" />
@@ -273,17 +285,20 @@ function LeadDetails() {
           <div className="col-12 col-md-6 border p-0">
             <div className='d-flex align-items-center border-bottom p-2 justify-content-between'>
               <h5 className='m-0'>Identity</h5>
-              <button 
-                className={`btn btn-outline-${selectedLead.identityComplete ? 'success' : 'primary'}`}
-                onClick={() => handleIdentityEnrichment()}
-                disabled={selectedLead.identityComplete || actionLoading.identity}
-              >
-                Explore Identity
-                {actionLoading.identity 
-                  ? <div className="spinner-border" role="status" /> 
-                  : <FontAwesomeIcon icon={selectedLead.identityComplete ? faCheck : faMagnifyingGlass} className='ms-2' />
-                }
-              </button>
+              <div className='d-flex flex-column align-items-end'>
+                <button 
+                  className={`btn btn-outline-${selectedLead.identityComplete ? 'success' : 'primary'}`}
+                  onClick={() => handleIdentityEnrichment()}
+                  disabled={selectedLead.identityComplete || actionLoading.identity}
+                >
+                  Explore Identity
+                  {actionLoading.identity 
+                    ? <div className="spinner-border spinner-border-sm ms-1" role="status" /> 
+                    : <FontAwesomeIcon icon={selectedLead.identityComplete ? faCheck : faMagnifyingGlass} className='ms-2' />
+                  }
+                </button>
+                {actionLoading.identity && <EnrichmentLog leadId={selectedLeadId} goal={'IDENTITY'}/>}
+              </div>
             </div>
 
             <div className='p-2'>
@@ -311,18 +326,22 @@ function LeadDetails() {
           <div className="col-12 col-md-6 border p-0">
             <div className='d-flex align-items-center justify-content-between border-bottom p-2'>
               <h5 className="m-0">Contact</h5>
-              <button 
-                className={`justify-self-end btn btn-outline-${selectedLead.contactComplete ? 'success' : 'primary'}`}
-                onClick={() => handleContactEnrichment()}
-                disabled={selectedLead.contactComplete || actionLoading.contact}
-              >
-                Explore Contact
-                {actionLoading.contact 
-                  ? <div className="spinner-border" role="status" /> 
-                  : <FontAwesomeIcon icon={selectedLead.contactComplete ? faCheck : faMagnifyingGlass} className='ms-2' />
-                }
-              </button>
+              <div className='d-flex flex-column align-items-end'>
+                <button 
+                  className={`justify-self-end btn btn-outline-${selectedLead.contactComplete ? 'success' : 'primary'}`}
+                  onClick={() => handleContactEnrichment()}
+                  disabled={selectedLead.contactComplete || actionLoading.contact}
+                >
+                  Explore Contact
+                  {actionLoading.contact 
+                    ? <div className="spinner-border spinner-border-sm ms-1" role="status" /> 
+                    : <FontAwesomeIcon icon={selectedLead.contactComplete ? faCheck : faMagnifyingGlass} className='ms-2' />
+                  }
+                </button>
+                {actionLoading.contact && <EnrichmentLog leadId={selectedLeadId} goal={'CONTACT'}/>}
+              </div>
             </div>
+            {actionEval.contact && <div className={`text-${actionEval.contact.completed ? 'success' : 'danger'} ms-3`}>{actionEval.contact.reason}</div>}
             <div className='p-2 d-flex flex-column p-0'>
               <div className='flex-grow-1 d-flex'>
                 <a href={`tel:${selectedLead.phone}`} className={`btn rounded-circle btn-outline-${selectedLead.phone ? 'success' : 'secondary disabled'}`}>

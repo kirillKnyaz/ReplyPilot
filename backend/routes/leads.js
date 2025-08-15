@@ -24,6 +24,24 @@ const leadManual = z.object({
   location: z.string().optional()
 })
 
+router.get('/:id/enrichmentLog/:goal', async (req, res) => {
+  const leadId = req.params.id;
+  const goal = req.params.goal;
+
+  console.log('Fetching enrichment log for lead:', leadId, 'goal:', goal);
+
+  try {
+    const log = await prisma.leadEnrichmentLog.findFirst({
+      where: { leadId, goal },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(log);
+  } catch (err) {
+    console.log('Error fetching enrichment logs:', err);
+    res.status(500).json({ message: 'Failed to fetch enrichment logs', error: err.message });
+  }
+});
+
 // routes/leads.js
 router.patch('/:id', async (req, res) => {
   const userId = req.user.userId;

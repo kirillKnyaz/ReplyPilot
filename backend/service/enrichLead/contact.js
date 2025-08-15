@@ -32,7 +32,7 @@ const enrichContact = async ({ userId, leadId }) => {
   let { url, type } = {};
   try {
     // get the next source to enrich
-    ({ url, type } = await getNextSource(lead));
+    ({ url, type } = await getNextSource(lead, "CONTACT"));
     // if no source is available (equal to null), return null
     if (!url || url === null) {
       console.log('No contact sources available for enrichment.');
