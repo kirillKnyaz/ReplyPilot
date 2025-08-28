@@ -11,14 +11,22 @@ export function AuthProvider({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const logout = (msg) => {
+  const logout = (logoutMessage = 'Logged out successfully') => {
     localStorage.removeItem('token');
+    console.log('User logged out', logoutMessage);
+    navigate('/login', { 
+      state: { 
+        logoutMessage: logoutMessage,
+        key: Date.now() // force state update
+      },
+      replace: true
+    });
     setAuthenticated(false);
     setUser(null);
-    navigate('/login', { state: { logoutMessage: 'Logged out successfully' } });
   };
 
   const checkAuth = useCallback(async () => {
+    console.log('Checking authentication...');
     const token = localStorage.getItem('token');
     if (!token) {
       setAuthenticated(false);

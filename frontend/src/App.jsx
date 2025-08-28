@@ -14,6 +14,7 @@ import PaymentSuccessfulPage from './pages/billing/PaymentSuccessfulPage';
 import PaymentCancelPage from './pages/billing/PaymentCancelPage';
 import BillingPage from './pages/billing/BillingPage';
 import { LeadProvider } from './context/LeadContext';
+import OnboardingChat from './pages/onboarding/OnboardingChatPage';
 
 export default function App() {
   return (
@@ -41,7 +42,7 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <IntakeFormProvider>
-                    <OnboardingPage />
+                    <OnboardingChat/>
                   </IntakeFormProvider>
                 </ProtectedRoute>
               }

@@ -66,12 +66,21 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '1d' });
 
+    // 3) Send it as an HTTP-only cookie
+    res.cookie('access_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // must be true on HTTPS in prod
+      sameSite: 'lax', // if FE and BE are on different top-level domains, use 'none'
+      maxAge: 1000 * 60 * 60, // 1 hour
+      path: '/',              // send cookie to all routes
+      // domain: '.yourdomain.com', // (optional) set in prod if needed
+    });
+
     res.json({ token: token, user: { id: user.id, email: user.email, profile: user.profile, subscription: user.subscription } });
   } catch (err) {
     res.status(500).json({ message: 'Login failed', error: err.message});
   }
 });
-
 
 // AUTH check
 const authenticate = require('../middleware/authenticate');

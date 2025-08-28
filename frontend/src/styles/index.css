@@ -25,3 +25,23 @@
 .nav-link {
   cursor: pointer;
 }
+
+.message-bubble {
+  position: relative;
+  display: inline-block;
+  padding: 10px 14px;
+  max-width: 75%;
+  color: white;
+}
+
+.message-bubble.bot {
+  background: #6c757d; /* secondary */
+  align-self: flex-start;
+  border-radius: 16px 16px 16px 0;
+}
+
+.message-bubble.me {
+  background: #0d6efd; /* primary */
+  align-self: flex-end;
+  border-radius: 16px 16px 0 16px;
+}

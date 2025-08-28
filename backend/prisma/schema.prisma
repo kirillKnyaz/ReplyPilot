@@ -14,26 +14,68 @@ datasource db {
 }
 
 model User {
-  id             String          @id @default(uuid())
-  email          String          @unique
-  password       String
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  profile        UserProfile?
-  subscription   Subscription?
-  leads          Lead[]
-  messages       Message[]
-  searchResults  SearchResult[]
-  lists          List[]
+  id              String          @id @default(uuid())
+  email           String          @unique
+  password        String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  profile         UserProfile?
+  subscription    Subscription?
+  leads           Lead[]
+  messages        Message[]
+  searchResults   SearchResult[]
+  lists           List[]
+  onboardingFlows OnboardingFlow[]
 }
 
 model UserProfile {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id])
-  profileData  Json?
-  icpSummary   Json?   
-  createdAt    DateTime  @default(now())
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+
+  // Existing
+  profileData   Json?     // raw Q&A / form transcript
+  icpSummary    Json?     // LLM-curated ICP summary
+
+  // NEW: structured fields we can filter on
+  goal          String?   // e.g. "Book 5 calls/month for web design"
+  successKpi    String?   // e.g. "Booked calls per month"
+  urgency       Int?      // 0-100
+  confidence    Int?      // 0-100
+  hoursPerWeek  Int?      // user-claimed bandwidth
+  riskTolerance RiskTolerance?  // enum below
+  tonePreference TonePreference? // enum below
+  obstacles     Json?     // ["time","copy","niche","deliverability"]
+  keywords      Json?     // ["Shopify","local","fitness"] from summary
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt @default(now())
+}
+
+enum RiskTolerance {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TonePreference {
+  CASUAL
+  PROFESSIONAL
+  BOLD
+  CAREFUL
+}
+
+model OnboardingFlow {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  step        String    // question index
+  question    String
+  answer      String?    
+  metadata    Json?     // e.g. confidence score, source
+
+  createdAt   DateTime  @default(now())
 }
 
 model Subscription {

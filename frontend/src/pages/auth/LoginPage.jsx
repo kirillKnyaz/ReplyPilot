@@ -2,27 +2,30 @@ import { useEffect, useState } from 'react';
 import API from '../../api';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
-function LoginPage() {  
+
+function LoginPage() {
   const location = useLocation();
   const state = location.state || {};
+  const [loggedOutMessage, setLoggedOutMessage] = useState('');
 
   const [email, setEmail] = useState(state.redirectEmail || '');
-  const [loggedOutMessage, setLoggedOutMessage] = useState(state.logoutMessage || '');
-  const [loginMessage, setLoginMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-
   const [password, setPassword] = useState('');
-  const navigate = useNavigate();
-
+  const [loading, setLoading] = useState(false);
+  const [loginMessage, setLoginMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  
   const { login } = useAuth();
 
+  // Always update loggedOutMessage when location.state.logoutMessage changes
   useEffect(() => {
-    if (loggedOutMessage) {
-      setTimeout(() => setLoggedOutMessage(''), 3000); // Clear message after 3 seconds
+    if (state.logoutMessage) {
+      setLoggedOutMessage(state.logoutMessage);
     }
-  }, [loggedOutMessage]);
-  
+  }, [location]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email || !password) {
@@ -50,16 +53,18 @@ function LoginPage() {
           setLoginMessage(''); // Clear message on input change
         }}
       />
-      <input
-        type="password"
-        className="form-control my-2"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => {
-          setPassword(e.target.value);
-          setLoginMessage(''); // Clear message on input change
-        }}
-      />
+      <div className='input-group my-2'>
+        <input
+          type={showPassword ? "text" : "password"}
+          className="form-control"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button className="btn border" type="button" onClick={() => setShowPassword(!showPassword)}>
+          <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+        </button>
+      </div>
 
       <Link className="mb-3 align-self-start ms-1 text-decoration-none">forgot password?</Link>
 

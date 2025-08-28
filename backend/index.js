@@ -3,12 +3,15 @@ const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const authenticate = require('./middleware/authenticate');
+const cookieParser = require('cookie-parser');
 const Stripe = require("stripe");
 
 const app = express();
 const prisma = new PrismaClient();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
+app.set('trust proxy', 1);
+app.use(cookieParser());
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
