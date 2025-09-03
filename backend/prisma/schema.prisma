@@ -29,27 +29,38 @@ model User {
 }
 
 model UserProfile {
-  id            String    @id @default(uuid())
-  userId        String    @unique
-  user          User      @relation(fields: [userId], references: [id])
+  id                 String    @id @default(uuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id])
 
-  // Existing
-  profileData   Json?     // raw Q&A / form transcript
-  icpSummary    Json?     // LLM-curated ICP summary
+  // json summary of ICP  
+  icpSummary         Json?     
 
-  // NEW: structured fields we can filter on
-  goal          String?   // e.g. "Book 5 calls/month for web design"
-  successKpi    String?   // e.g. "Booked calls per month"
-  urgency       Int?      // 0-100
-  confidence    Int?      // 0-100
-  hoursPerWeek  Int?      // user-claimed bandwidth
-  riskTolerance RiskTolerance?  // enum below
-  tonePreference TonePreference? // enum below
-  obstacles     Json?     // ["time","copy","niche","deliverability"]
-  keywords      Json?     // ["Shopify","local","fitness"] from summary
+  // db fields to curate as we goal
+  // understanding the business
+  businessPurpose    String? 
+  businessOffer      String?
+  businessAdvantage  String?
+  businessGoals      String?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt @default(now())
+  // understanding the audience
+  audienceDefinition String?
+  audienceAge        String?
+  audienceLocation   String?
+  audienceProblem    String?
+
+  // understanding the offer
+  offerMonetization  String? // eg.  one-time, subscription
+  offerPricing       String?
+  offerExclusivity   String?
+  offerOptions       String?
+
+  businessComplete   Boolean   @default(false)
+  audienceComplete   Boolean   @default(false)
+  offerComplete      Boolean   @default(false)
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt @default(now())
 }
 
 enum RiskTolerance {

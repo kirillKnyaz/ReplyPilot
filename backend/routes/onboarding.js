@@ -1,216 +1,218 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const ONBOARDING_STEPS = require('../lib/onboardingSteps.js');
-const z = require('zod');
-const { generateICPSummary, generateFlowSummary } = require('../service/gpt.js');
-const { OpenAI } = require('openai');
-const authenticate = require('../middleware/authenticate.js');
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const answerSchema = z.object({
-  sessionId: z.string().uuid(),
-  questionId: z.string(),
-  answer: z.any()
-})
+const ONBOARDING_STEPS = require('../service/onboarding/steps');
+const { routeAndExtract } = require('../service/onboarding/routeGpt'); // GPT: classifier+extractor
+const { answerer } = require('../service/onboarding/answererGpt');
+const { handleMetaFlow } = require('../service/onboarding/metaFlow');
 
-router.post('/start', async (req, res) => {
-  console.log("Onboarding start requested by user", req.user.userId);
+// ===== Helpers kept local to this file =====
+const CATEGORIES = {
+  business: ["businessPurpose", "businessOffer", "businessAdvantage", "businessGoals"],
+  audience: ["audienceDefinition", "audienceAge", "audienceLocation", "audienceProblem"],
+  offer:    ["offerMonetization", "offerPricing", "offerExclusivity", "offerOptions"],
+};
+const CATEGORY_ORDER = ["business", "audience", "offer"];
+
+// Pick first missing field according to category order
+function getNextQuestion(profile) {
+  for (const step of ONBOARDING_STEPS) {
+    if (!isFilled(profile?.[step.id])) {
+      return step;
+    }
+  }
+  return null; // all done
+}
+
+function isFilled(v) {
+  if (v === null || v === undefined) return false;
+  if (typeof v === "string") return v.trim().length > 0;
+  return true;
+}
+
+// Merge profile_delta directly into columns we allow
+function buildColumnUpdate(delta) {
+  console.log("BUILDING COLUMN UPDATE:", JSON.stringify(delta));
+  if (!delta) return {};
+  const allowed = new Set([
+    ...CATEGORIES.business,
+    ...CATEGORIES.audience,
+    ...CATEGORIES.offer
+  ]);
+
+  const out = {};
+  for (const [k, v] of Object.entries(delta)) {
+    if (!allowed.has(k)) continue;
+    if (v === null || v === undefined) { out[k] = null; continue; }
+    out[k] = typeof v === "string" ? v.trim() : v;
+  }
+  return out;
+}
+
+// After update, recompute completion flags
+function computeCompletionFlags(profile) {
+  const allFilled = (keys) => keys.every(k => isFilled(profile?.[k]));
+  return {
+    businessComplete: allFilled(CATEGORIES.business),
+    audienceComplete: allFilled(CATEGORIES.audience),
+    offerComplete:    allFilled(CATEGORIES.offer),
+  };
+}
+
+function progress(profile) {
+  const all = [...CATEGORIES.business, ...CATEGORIES.audience, ...CATEGORIES.offer];
+  const known = all.filter(k => isFilled(profile?.[k])).length;
+  return { requiredKnown: known, requiredTotal: all.length };
+}
+
+// ====== ROUTES ======
+
+// GET /onboarding/start — idempotent, no GPT, just say where we are and ask next
+router.get('/start', async (req, res) => {
   const userId = req.user.userId;
-  
-  // check if exists or complete  
-  const completedFlows = await prisma.onboardingFlow.findMany({
-    where: { userId },
-    orderBy: { step: "desc" }
-  })
 
-  const lastFlow = completedFlows[0];
-  const currentStepIndex = ONBOARDING_STEPS.findIndex(step => step.id === lastFlow.step);
-  const nextStep = ONBOARDING_STEPS[currentStepIndex + 1];
-  
-  if (lastFlow && ONBOARDING_STEPS.some(step => step.id === lastFlow.step)) {
-    // that's the last completed step
-    console.log('Resuming existing onboarding flow for user:', userId);
-    if (lastFlow.answer === null || lastFlow.answer === undefined) {
-      // the question wasn't completed
-      const AIReply = await generateFlowSummary(lastFlow, completedFlows);
+  // ensure a profile row exists (optional: create on first visit)
+  let userProfile = await prisma.userProfile.findUnique({ where: { userId } });
+  if (!userProfile) {
+    userProfile = await prisma.userProfile.create({ data: { userId } });
+  }
 
+  const allDone =
+    userProfile.offerComplete &&
+    userProfile.businessComplete &&
+    userProfile.audienceComplete;
+
+  if (allDone) {
+    return res.json({
+      bot: "Welcome back! You've completed all onboarding steps. Ask me anything about pricing, channels, or scripts.",
+      progress: progress(userProfile),
+      question: null
+    });
+  }
+
+  const nextQ = getNextQuestion(userProfile);
+  if (nextQ) {
+    return res.json({
+      bot: `Welcome back! Let’s continue.`,
+      progress: progress(userProfile),
+      question: { id: nextQ.id, prompt: nextQ.prompt, category: nextQ.category, type: nextQ.type ?? "text" }
+    });
+  }
+
+  // If flags aren’t set but everything is filled, we still consider it done:
+  return res.json({
+    bot: "Welcome! I am OnboardingPilot. Ready to finish your setup.",
+    progress: progress(userProfile),
+    question: null
+  });
+});
+
+// POST /onboarding/answer — run router+extractor, merge into columns, return next step or tailored guidance hook
+router.post('/answer', async (req, res) => {
+  const userId = req.user.userId;
+  const { answer } = req.body;
+  if (!answer || (typeof answer === "string" && answer.trim() === '')) {
+    return res.status(400).json({ error: "Invalid answer" });
+  }
+
+  // load profile + tiny history
+  let userProfile = await prisma.userProfile.findUnique({ where: { userId } });
+  if (!userProfile) userProfile = await prisma.userProfile.create({ data: { userId } });
+
+  // This is your single GPT call for the turn
+  const routed = await routeAndExtract({
+    userMessage: typeof answer === "string" ? answer.trim() : answer,
+    profile: userProfile,
+    history: [] // plug your conversation turns if you keep them
+  });
+
+  console.log("ROUTED:", JSON.stringify(routed));
+
+  // Build column update and persist (atomic)
+  const columnDelta = buildColumnUpdate(routed.profile_delta);
+  let updated;
+  await prisma.$transaction(async (tx) => {
+    // Write fields
+    const afterFields = await tx.userProfile.update({
+      where: { userId },
+      data: columnDelta
+    });
+
+    // Recompute completion flags using the *merged* picture:
+    const mergedView = { ...afterFields, ...columnDelta }; // rough view; reload for full correctness
+    const flags = computeCompletionFlags(mergedView);
+
+    updated = await tx.userProfile.update({
+      where: { userId },
+      data: flags
+    });
+  });
+
+  // Decide what to do next (deterministic)
+  const nextQ = getNextQuestion(updated);
+  const allDone =
+    updated.offerComplete &&
+    updated.businessComplete &&
+    updated.audienceComplete;
+
+  if (routed.intent === "OFF_TOPIC") {
+    return res.json({
+      bot: nextQ
+        ? `That’s outside our current objective (define your offer & ICP). ${nextQ.prompt}`
+        : "That’s outside our current objective (define your offer & ICP). Ask me about pricing, channels, or scripts.",
+      question: nextQ ? { id: nextQ.id, prompt: nextQ.prompt, category: nextQ.category, type: nextQ.type ?? "text" } : null,
+      progress: progress(updated)
+    });
+  }
+
+  // When user filled a slot (ANSWER_SLOT), just ack + ask next (no second GPT call)
+  if (routed.intent === "ANSWER_SLOT") {
+    if (allDone) {
       return res.json({
-        sessionId: userId,
-        stepIndex: ONBOARDING_STEPS.findIndex(s => s.id === lastFlow.step),
-        question: { id: lastFlow.step, prompt: AIReply, type: findType(lastFlow.step) }
+        bot: "Nice — your essentials are captured. Ask a question (pricing, channels, scripts) or say 'summarize'.",
+        question: null,
+        progress: progress(updated)
       });
     }
-
-    // if completed the last step, return the next one
-    if (currentStepIndex === -1) {
-      return res.status(500).json({ error: 'Inconsistent onboarding state' });
-    }
-    
-    // if last step, return complete
-    if (currentStepIndex === ONBOARDING_STEPS.length - 1) {
-      return res.json({ message: 'Onboarding complete', onBoardingComplete: true });
-    }
-
-    await prisma.onboardingFlow.create({
-      data: { step: nextStep.id, question: nextStep.prompt, answer: null, user: { connect: { id: userId } } }
-    });
-    
     return res.json({
-      sessionId: userId,
-      stepIndex: currentStepIndex + 1,
-      question: { id: nextStep.id, prompt: nextStep.prompt, type: nextStep.type, options: nextStep.options || [] }
+      bot: nextQ ? `Got it. ${nextQ.prompt}` : "Got it.",
+      question: nextQ ? { id: nextQ.id, prompt: nextQ.prompt, category: nextQ.category, type: nextQ.type ?? "text" } : null,
+      progress: progress(updated)
     });
   }
 
-  // if not started, start a new session
-  await prisma.onboardingFlow.create({
-    data: { step: ONBOARDING_STEPS[0].id, question: ONBOARDING_STEPS[0].prompt, answer: null, user: { connect: { id: userId } } }
-  })
-
-  return res.json({
-    sessionId: userId,
-    stepIndex: 0,
-    question: { id: nextStep.id, prompt: nextStep.prompt, type: nextStep.type }
-  });
-});
-
-router.post("/answer", async (req, res) => {
-  const userId = req.user.userId;
-  const { sessionId, questionId, answer } = answerSchema.parse(req.body);
-  console.log("Onboarding answer received from user", userId, "for question", questionId, "with answer", answer);
-  if (sessionId !== userId) return res.status(400).json({ error: "bad session" });
-
-  const currentStepIndex = ONBOARDING_STEPS.findIndex(step => step.id === questionId);
-  if (currentStepIndex === -1) {
-    return res.status(400).json({ error: 'Invalid questionId' });
-  }
-
-  // ensure we set the answer for the most recent unanswered row of this step
-  await prisma.onboardingFlow.updateMany({
-    where: { userId, step: questionId, answer: null },
-    data: { answer: normalizeAnswer(answer) } // stringify arrays/objects; keep numbers as numbers if using Json
-  });
-
-  // if last step, return complete
-  if (currentStepIndex === ONBOARDING_STEPS.length - 1) {
-    return res.json({ message: 'Onboarding complete', onBoardingComplete: true });
-  }
-
-  // create the next step
-  const nextStep = ONBOARDING_STEPS[currentStepIndex + 1];
-  console.log("Creating next onboarding step for user", userId, "step", nextStep.id);
-  await prisma.onboardingFlow.create({
-    data: { step: nextStep.id, question: nextStep.prompt, answer: null, user: { connect: { id: userId } } }
-  });
-
-  return res.json({
-    sessionId: userId,
-    stepIndex: currentStepIndex + 1,
-    question: { id: nextStep.id, prompt: nextStep.prompt, type: nextStep.type }
-  }); 
-});
-
-router.post('/back', async (req, res) => {
-  const userId = req.user.userId;
-  const last = await prisma.onboardingFlow.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" }
-  });
-  if (!last) return res.json({ message: "nothing to undo" });
-
-  await prisma.onboardingFlow.delete({
-    where: { id: last.id }
-  })
-
-  const previous = await prisma.onboardingFlow.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" }
-  });
-
-  if (!previous) {
-    // start over
-    const firstStep = ONBOARDING_STEPS[0];
-    const newFlow = await prisma.onboardingFlow.create({
-      data: {
-        step: firstStep.id,
-        question: firstStep.prompt,
-        answer: null,
-        user: { connect: { id: userId } }
-      }
+  if (routed.intent === "ASK_QUESTION_IN_SCOPE" && !nextQ) {
+    const reply = await answerer({ topic: routed.user_question_topic || "general", profile: updated, history: [] });
+    return res.json({
+      bot: reply,
+      question: null,
+      progress: progress(updated)
     });
-    return res.json(newFlow);
   }
 
-  return res.json(previous);
-})
+  if (routed.intent === "META_FLOW") {
+    const out = await handleMetaFlow({ message: answer, profile: updated });
+    return res.json({
+      bot: out.reply,
+      question: out.asked_slot,
+      progress: progress(updated)
+    });
+}
 
-router.post('/complete', async (req, res) => {
-  const userId = req.user.userId;
-  const flow = await prisma.onboardingFlow.findMany({ where: { userId }, orderBy: { step: "asc" }});
-
-  if (flow.length === 0) {
-    return res.status(400).json({ error: 'No onboarding data found' });
+  // Fallback: ask next or declare done
+  if (allDone) {
+    return res.json({
+      bot: "All set. Ask anything in-scope or say 'summarize' to see your profile.",
+      question: null,
+      progress: progress(updated)
+    });
   }
-
-  const raw = {};
-  for (const s of ONBOARDING_STEPS) {
-    const row = flow.find(f => f.step === s.id);
-    raw[s.id] = row ? parseMaybeJson(row.answer) : null;
-  }
-
-  // Derive structured scalars
-  const structured = {
-    goal: raw.success ?? null,
-    successKpi: "Booked calls per month",
-    urgency: clampInt(raw.urgency, 0, 100),
-    confidence: clampInt(raw.confidence, 0, 100),
-    hoursPerWeek: clampInt(raw.hours, 0, 168),
-    riskTolerance: raw.risk ?? null,
-    tonePreference: raw.tone ?? null,
-    obstacles: Array.isArray(raw.obstacles) ? raw.obstacles : [],
-  };
-
-  // Summarize with LLM (function-calling)
-  const icpSummary = await generateICPSummary(raw);
-
-  await prisma.userProfile.upsert({
-    where: { userId },
-    update: { profileData: raw, icpSummary, ...structured },
-    create: { userId, profileData: raw, icpSummary, ...structured }
+  return res.json({
+    bot: nextQ ? nextQ.prompt : "What would you like to cover next?",
+    question: nextQ ? { id: nextQ.id, prompt: nextQ.prompt, category: nextQ.category, type: nextQ.type ?? "text" } : null,
+    progress: progress(updated)
   });
-
-  return res.json({ profile: structured, icpSummary });
-})
-
-router.get('/flow', async (req, res) => {
-  const userId = req.user.userId;
-  const rows = await prisma.onboardingFlow.findMany({ where: { userId }, orderBy: { createdAt: "asc" }});
-  return res.json(rows);
 });
 
 module.exports = router;
-
-function parseMaybeJson(s) { 
-  try { 
-    return JSON.parse(s); 
-  } catch { 
-    return s; 
-  } 
-}
-
-function clampInt(n, min, max) { 
-  n = Number(n);
-  if (Number.isNaN(n)) return null; 
-  return Math.max(min, Math.min(max, n)); 
-}
-
-function findType(stepId){
-  const s = ONBOARDING_STEPS.find(x => x.id === stepId);
-  return s?.type ?? "text";
-}
-
-function normalizeAnswer(a){
-  if (a == null) return null;
-  return JSON.stringify(a);
-}

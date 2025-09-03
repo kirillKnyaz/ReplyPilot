@@ -52,8 +52,7 @@ router.post('/login', async (req, res) => {
         profile: { 
           select: { 
             id: true, 
-            icpSummary: true, 
-            profileData: true 
+            icpSummary: true
           }
         },
         subscription: { select: { stripeId: true, tier: true, active: true } },
@@ -92,7 +91,7 @@ router.get('/me', authenticate, async (req, res) => {
       select: { 
         id: true, 
         email: true, 
-        profile: {select: {id: true, profileData: true, icpSummary: true}}, 
+        profile: {select: {id: true, icpSummary: true}}, 
         subscription: true 
       },
     });

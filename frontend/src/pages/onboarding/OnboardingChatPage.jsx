@@ -1,137 +1,216 @@
-// OnboardingChat.tsx
-import { useEffect, useState, useRef, useMemo } from "react";
-import API from "../../api";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import API from "../../api"; // axios instance
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faQuestionCircle } from '@fortawesome/free-solid-svg-icons'
 
-export default function OnboardingChat(){
-  const [sessionId, setSessionId] = useState();
+// Optional: centralize errors
+function toastError(e) {
+  const msg = e?.response?.data?.error || e?.message || "Something went wrong";
+  console.error("[Chat]", msg);
+  // hook in your toast lib if you have one
+}
+
+// ---------- Chat Component ----------
+export default function OnboardingChatPage() {
   const [messages, setMessages] = useState([]);
-  const [currentQ, setCurrentQ] = useState({
-    id: null, prompt: "Loading...", type: "text"
-  });
   const [input, setInput] = useState("");
-  
-  const startedRef = useRef(false);
   const [busy, setBusy] = useState(false);
+  const [question, setQuestion] = useState(null); // { id, prompt, category, type }
+  const [progress, setProgress] = useState({ requiredKnown: 0, requiredTotal: 12 });
+  const [showHint, setShowHint] = useState(false);
 
+  const startedRef = useRef(false);
+  const listRef = useRef(null);
+
+  // Scroll to bottom on new message
   useEffect(() => {
-    if (startedRef.current) {
-      console.log("Onboarding is already in progress");
-      return;
-    }   // StrictMode guard
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
+  }, [messages, busy]);
+
+  // StrictMode-safe initial fetch
+  useEffect(() => {
+    if (startedRef.current) return;
     startedRef.current = true;
     (async () => {
       setBusy(true);
       try {
-        const { data } = await API.post("/onboarding/start", {});
-        setSessionId(data.sessionId);
-        if (data.question) {
-          setCurrentQ(data.question);
-          setMessages([{ from: "bot", text: data.question.prompt }]);
+        const { data } = await API.get("/onboarding/start");
+        // Data shape: { bot: string, question?, progress? }
+        const greet = data?.bot ?? "Welcome!";
+        setMessages([{ role: "bot", text: greet }, ...(data?.question ? [{ role: "bot", text: data.question.prompt }] : [])]);
+        if (data?.question) {
+          setQuestion(data.question);
         }
+        if (data?.progress) setProgress(data.progress);
+      } catch (e) {
+        toastError(e);
+        setMessages([{ role: "bot", text: "Sorry — I couldn’t start the session." }]);
       } finally {
         setBusy(false);
-        startedRef.current = false;
       }
     })();
   }, []);
 
-  async function send() {
-    if (!currentQ || !sessionId) {
-      console.log("No current question or session ID");
-      return;
-    }
-    if (!input.trim()) {
-      console.log("Input is empty");    
-      return;
-    }
+  const placeholder = useMemo(() => {
+    if (question?.prompt) return question.prompt;
+    return "Type your answer or ask a question…";
+  }, [question]);
 
-    const answer = parseAnswer(input, currentQ);
-    setMessages(m => [...m, { from: "me", text: input }]);
+  async function send(text) {
+    const trimmed = (text || "").trim();
+    if (!trimmed || busy) return;
+
+    // optimistic add
+    setMessages((m) => [...m, { role: "me", text: trimmed }]);
     setInput("");
-
     setBusy(true);
-    if (startedRef.current) {
-      console.log("Onboarding step already in progress");
-      return;
-    }
-    startedRef.current = true;
-    try {
-      const { data } = await API.post("/onboarding/answer", {
-        sessionId, questionId: currentQ.id, answer
-      });
-      console.log("Received answer response:", data);
-      setCurrentQ(data.question);
-      setMessages(m => [...m, { from: "bot", text: data.question?.prompt || "..." }]);
 
-      if (data.done || data.onBoardingComplete) {
-        await API.post("/onboarding/complete", { sessionId });
-        // Stream a short celebratory closing
-        setCurrentQ(null);
-        return;
+    try {
+      const { data } = await API.post("/onboarding/answer", { answer: trimmed });
+      // Expected: { bot, question?, progress? }
+      if (data?.bot) {
+        setMessages((m) => [...m, { role: "bot", text: data.bot }]);
       }
-    } catch (error) {
-      // Handle error
-      console.error("Error occurred while sending message:", error);
+      if (data?.question !== undefined) {
+        setQuestion(data.question); // may be null when complete or answering
+      }
+      if (data?.progress) setProgress(data.progress);
+    } catch (e) {
+      toastError(e);
+      setMessages((m) => [...m, { role: "bot", text: "Hmm, I couldn’t process that. Try again?" }]);
     } finally {
       setBusy(false);
-      startedRef.current = false;
+    }
+  }
+
+  function onKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send(input);
     }
   }
 
   return (
-    <div className="container p-3">
-      <div className="border rounded p-3 mb-2 w-100" style={{height: 360, overflowY: "auto"}}>
-        {messages.map((m,i) => (
-          <div
-            key={i}
-            className={`d-flex mb-2 ${m.from==="me" ? "justify-content-end" : "justify-content-start"}`}
-          >
-            <div className={`message-bubble ${m.from}`}>
-              {m.text}
-            </div>
-          </div>
-        ))}
+    <div className="container py-4 d-flex flex-column gap-3" style={{ maxWidth: 900 }}>
+      {/* Header */}
+      <div className="d-flex align-items-center justify-content-between">
+        <h5 className="m-0">OnboardingPilot</h5>
+        <ProgressBar known={progress.requiredKnown} total={progress.requiredTotal} />
       </div>
-      {currentQ && (
-        <div className="input-group">
-          <input 
-            className="form-control"
-            value={input}
-            onChange={e=>setInput(e.target.value)}
-            placeholder="Type your answer..."
-            onKeyDown={e => {
-              if (e.key==="Enter") { 
-                e.preventDefault(); 
-                send(); 
-              }
-            }} />
-          <button className="btn btn-primary" onClick={send}>Send</button>
-          <button className="btn btn-outline-secondary" disabled={busy} onClick={async () => {
-            if (!sessionId) return;
-            setBusy(true);
-            try {
-              // Get previous step from server and use it directly (no /start)
-              const { data } = await API.post("/onboarding/back", { sessionId });
-              // data can be either the previous row (with .question field) or a seeded first step
-              const q = data.question
-                ? { id: data.step ?? data.id ?? data.step, prompt: data.question, type: data.type ?? "text" }
-                : { id: data.step, prompt: data.question, type: "text" };
-              setCurrentQ(q);
-              setMessages([{ from: "bot", text: q.prompt }]);
-            } finally {
-              setBusy(false);
-            }
-          }}>
-            Back
-          </button>
-        </div>
+
+      {/* Chat area */}
+      <div
+        ref={listRef}
+        className="border rounded p-3 d-flex flex-column gap-2"
+        style={{ height: "60vh", overflowY: "auto", background: "#0b0c0f0a" }}
+      >
+        {messages.map((m, i) => (
+          <Bubble key={i} role={m.role} text={m.text} />
+        ))}
+
+        {busy && <TypingBubble />}
+      </div>
+
+      {/* Suggested quick actions */}
+      <div className="d-flex flex-wrap gap-2">
+        <button
+          className="btn btn-sm btn-outline-secondary"
+          onClick={() => send("summarize")}
+          disabled={busy}
+        >
+          Summarize
+        </button>
+        <button
+          className="btn btn-sm btn-outline-secondary"
+          onClick={() => send("what's next")}
+          disabled={busy}
+        >
+          What’s next?
+        </button>
+        <button
+          className="btn btn-sm btn-outline-secondary"
+          onClick={() => send("back")}
+          disabled={busy}
+        >
+          Back
+        </button>
+        <button
+          className="btn btn-sm btn-outline-danger"
+          onClick={() => send("restart")}
+          disabled={busy}
+        >
+          Restart
+        </button>
+      </div>
+
+      {/* Input */}
+      <div className="d-flex gap-2">
+        <textarea
+          className="form-control"
+          rows={1}
+          style={{ resize: "none" }}
+          placeholder={placeholder}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={onKeyDown}
+          disabled={busy}
+        />
+        <button className="btn btn-primary" onClick={() => send(input)} disabled={busy || !input.trim()}>
+          Send
+        </button>
+      </div>
+
+      {/* Hint below input */}
+      {question?.prompt && (
+        <small className="text-muted">
+          Current question: <em>{question.prompt}</em>
+          <div>
+            <span onClick={() => setShowHint((prev) => !prev)}>
+              Why this question? <FontAwesomeIcon icon={faQuestionCircle}/>
+            </span>
+            {showHint && <small className="text-muted">
+              <br/>I’m asking this to better understand your business and help you craft effective outreach messages. You can also type your own questions about pricing, channels, or scripts.
+            </small>}
+          </div>
+        </small>
       )}
     </div>
   );
 }
 
-function parseAnswer(input, q) {
-  if (q.type==="number") return Number(input);
-  if (q.type==="multiselect") return input.split(",").map(s=>s.trim()).filter(Boolean);
-  return input;
+// ---------- UI bits ----------
+function Bubble({ role, text }) {
+  const cls =
+    role === "me" ? "message-bubble me align-self-end" : "message-bubble bot align-self-start";
+  return <div className={cls}>{text}</div>;
+}
+
+function TypingBubble() {
+  return (
+    <div className="message-bubble bot align-self-start" aria-live="polite">
+      <span className="me-1">…</span>
+      <span className="visually-hidden">Assistant is typing</span>
+    </div>
+  );
+}
+
+function ProgressBar({ known, total }) {
+  const pct = total ? Math.round((known / total) * 100) : 0;
+  return (
+    <div className="d-flex align-items-center gap-2" style={{ minWidth: 180 }}>
+      <div className="progress" style={{ width: 130, height: 8 }}>
+        <div
+          className="progress-bar"
+          role="progressbar"
+          style={{ width: `${pct}%` }}
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        />
+      </div>
+      <small className="text-muted">{known}/{total}</small>
+    </div>
+  );
 }
