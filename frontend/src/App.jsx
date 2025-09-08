@@ -14,7 +14,7 @@ import PaymentSuccessfulPage from './pages/billing/PaymentSuccessfulPage';
 import PaymentCancelPage from './pages/billing/PaymentCancelPage';
 import BillingPage from './pages/billing/BillingPage';
 import { LeadProvider } from './context/LeadContext';
-import OnboardingChat from './pages/onboarding/OnboardingChatPage';
+import OnboardingChatPage from './pages/onboarding/OnboardingChatPage';
 
 export default function App() {
   return (
@@ -41,9 +41,7 @@ export default function App() {
               path="/onboarding"
               element={
                 <ProtectedRoute>
-                  <IntakeFormProvider>
-                    <OnboardingChat/>
-                  </IntakeFormProvider>
+                  <OnboardingChatPage/>
                 </ProtectedRoute>
               }
             />

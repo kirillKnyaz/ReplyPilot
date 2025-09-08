@@ -37,9 +37,9 @@ function PricingPage() {
   const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
   const navigate = useNavigate();
   const location = useLocation();
-  const { locationMessage } = location.state.message || {};
+  const { locationMessage } = location.state && location.state.message ? { locationMessage: location.state.message } : { locationMessage: null };
 
-  console.log(location)
+  console.log("location state:", location); 
 
   //redirect block
   useEffect(() => {
@@ -68,9 +68,9 @@ function PricingPage() {
   }
 
   return (<div className='container mt-4'>
-    {locationMessage && <div className='text-info'>{locationMessage}</div>}
     <h1>Get started now</h1>
-    <div className='row mt-5'>
+    {locationMessage && <div className='text-info'>{locationMessage}</div>}
+    <div className='row mt-3'>
       {pricingTiers.map((tier, index) => (
         <div key={index} className='col-md-4 mb-4'>
           <div className='card'>

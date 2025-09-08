@@ -11,7 +11,7 @@ function toastError(e) {
 }
 
 // ---------- Chat Component ----------
-export default function OnboardingChatPage() {
+function OnboardingChatPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -21,6 +21,7 @@ export default function OnboardingChatPage() {
 
   const startedRef = useRef(false);
   const listRef = useRef(null);
+
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -214,3 +215,5 @@ function ProgressBar({ known, total }) {
     </div>
   );
 }
+
+export default OnboardingChatPage;

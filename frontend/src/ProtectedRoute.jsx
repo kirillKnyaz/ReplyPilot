@@ -36,8 +36,9 @@ export default function ProtectedRoute({ children }) {
   }
 
   // Onboarding gate
-  if (!user?.profile?.icpSummary) {
-    return <Navigate to="/onboarding" replace />;
+  if (!user?.profile?.icpSummary && location.pathname !== "/onboarding") {
+    console.log("Onboarding required, redirecting...");
+    return (<Navigate to="/onboarding" />);
   }
 
   return children;
