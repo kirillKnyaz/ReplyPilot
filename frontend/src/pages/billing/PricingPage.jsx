@@ -61,7 +61,7 @@ function PricingPage() {
       });
       console.log('Checkout session created:', data);
 
-      window.location.href = data.url;
+      window.open(data.url, '_blank');
     } catch (error) {
       console.log('Error during checkout:', error);
     }
